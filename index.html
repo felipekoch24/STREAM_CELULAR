@@ -1,107 +1,130 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TV Stream Pro</title>
+    <title>Stream Mobile Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
-        #video-container { width: 100vw; height: 100vh; position: relative; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-        
-        .controls { position: absolute; top: 10px; left: 10px; z-index: 20; display: flex; gap: 10px; }
-        button { padding: 15px; background: rgba(0,0,0,0.7); border: 1px solid #fff; color: white; border-radius: 8px; font-weight: bold; }
-
-        #interface { position: absolute; bottom: 0; width: 100%; height: 85vh; background: #111; padding: 20px; overflow-y: auto; z-index: 30; }
-        .banner { width: 140px; height: 200px; border-radius: 8px; margin-right: 15px; cursor: pointer; object-fit: cover; border: 2px solid #444; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; margin-top: 15px; }
-        .oculto { display: none; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
+        video { width: 100%; height: 250px; background: #000; display: block; }
+        .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; }
+        .serie-card { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; cursor: pointer; }
+        .serie-card img { width: 60px; height: 80px; object-fit: cover; border-radius: 4px; margin-right: 15px; }
+        .eps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 15px; }
+        button { padding: 12px; background: #333; color: #fff; border: none; border-radius: 4px; }
+        #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 99; display: none; text-align: center; padding-top: 100px; }
     </style>
 </head>
 <body>
 
-    <div id="video-container">
-        <video id="video" playsinline></video>
-        <div class="controls">
-            <button onclick="document.getElementById('interface').classList.remove('oculto')">🏠 Menu</button>
-            <button onclick="toggleFS()">📺 Tela Cheia</button>
-        </div>
+    <video id="video" playsinline controls></video>
+
+    <div id="next-overlay">
+        <h2>Próximo em <span id="count">10</span>s</h2>
+        <button onclick="pularAgora()" style="width:80%; padding:20px; background:#e50914;">PULAR AGORA</button>
+        <button onclick="cancelarPulo()" style="width:80%; margin-top:10px; padding:15px;">CANCELAR</button>
     </div>
 
     <div id="interface">
-        <h3>Continuando...</h3>
-        <div id="last-watched" style="margin-bottom: 20px; padding: 15px; background: #222; border-radius: 8px;">Nenhum histórico</div>
-        
-        <h3>Séries</h3>
-        <div id="banner-container" style="display: flex; overflow-x: auto;"></div>
-        <h3>Episódios</h3>
-        <div id="btns-eps" class="grid"></div>
+        <div id="div-continuar" style="display:none;" class="section-title">
+            <button onclick="playHistorico()" style="width:100%; background:#e50914; padding:15px; border:none; color:white; font-weight:bold;">CONTINUAR ASSISTINDO</button>
+        </div>
+        <div class="section-title">BIBLIOTECA</div>
+        <div id="lista-series"></div>
+    </div>
+
+    <div id="eps-view" style="display:none;">
+        <button style="width:100%; padding:15px; background:#222; border:none; color:white;" onclick="voltar()">⬅️ VOLTAR</button>
+        <div id="btns-eps" class="eps-grid"></div>
     </div>
 
     <script>
         const video = document.getElementById('video');
         let hls = new Hls();
+        let timer = null;
+        let lastBtn = null;
 
         const series = [
-            { nome: "Tintim", img: "https://static.wikia.nocookie.net/dublagem/images/6/63/Tintim.jpg/revision/latest?cb=20240623151337&path-prefix=pt-br", pasta: "a/as-aventuras-de-tintim-dublado", total: 39, tipo: "zero" },
-            { nome: "Yomi", img: "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/cf01037046bf9885e1ddbc3c1753610e.png", pasta: "y/yomi-no-tsugai", total: 12, tipo: "zero" },
-            { nome: "Invencivel", img: "https://i.ytimg.com/vi/Xg8aWV14vSs/maxresdefault.jpg", pasta: "i/invencivel-4-dublado", total: 8, tipo: "zero" },
-            { nome: "Pantera", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTKlP0fX0wkJMcFT5d2lKmz8j0iBPgHq7wIwBlLfBQbCA&s=10", pasta: "a/a-pantera-cor-de-rosa", total: 129, tipo: "zero" },
-            { nome: "One Piece", img: "https://m.media-amazon.com/images/M/MV5BMTNjNGU4NTUtYmVjMy00YjRiLTkxMWUtNzZkMDNiYjZhNmViXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", pasta: "o/one-piece", total: 1167, start: 1003, tipo: "puro" }
+            { nome: "Tintim", img: "https://static.wikia.nocookie.net/dublagem/images/6/63/Tintim.jpg/revision/latest?cb=20240623151337&path-prefix=pt-br", pasta: "a/as-aventuras-de-tintim-dublado", total: 39 },
+            { nome: "Yomi", img: "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/cf01037046bf9885e1ddbc3c1753610e.png", pasta: "y/yomi-no-tsugai", total: 12 },
+            { nome: "Invencivel", img: "https://i.ytimg.com/vi/Xg8aWV14vSs/maxresdefault.jpg", pasta: "i/invencivel-4-dublado", total: 8 },
+            { nome: "Pantera", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTKlP0fX0wkJMcFT5d2lKmz8j0iBPgHq7wIwBlLfBQbCA&s=10", pasta: "a/a-pantera-cor-de-rosa", total: 129 },
+            { nome: "One Piece", img: "https://m.media-amazon.com/images/M/MV5BMTNjNGU4NTUtYmVjMy00YjRiLTkxMWUtNzZkMDNiYjZhNmViXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", pasta: "o/one-piece", total: 1167, start: 1003 }
         ];
 
-        // Salvar progresso
         video.ontimeupdate = () => {
-            if (video.currentSrc) localStorage.setItem('last_pos', JSON.stringify({url: video.currentSrc, time: video.currentTime}));
+            if (video.currentTime > 5) localStorage.setItem('last_pos', JSON.stringify({url: video.currentSrc, time: video.currentTime}));
         };
 
-        function toggleFS() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
-
-        window.onload = () => {
-            let last = JSON.parse(localStorage.getItem('last_pos'));
-            if (last) {
-                document.getElementById('last-watched').innerHTML = `<button onclick="playVideo('${last.url}')">Continuar de ${Math.floor(last.time/60)} min</button>`;
-            }
-            // Render Banners
-            const container = document.getElementById('banner-container');
-            series.forEach(s => {
-                let img = document.createElement('img');
-                img.src = s.img;
-                img.className = 'banner';
-                img.onclick = () => renderEps(s);
-                container.appendChild(img);
-            });
+        video.onended = () => {
+            document.getElementById('next-overlay').style.display = 'block';
+            let c = 10;
+            timer = setInterval(() => {
+                c--;
+                document.getElementById('count').innerText = c;
+                if(c <= 0) pularAgora();
+            }, 1000);
         };
 
-        function renderEps(serie) {
-            const listaEps = document.getElementById('btns-eps');
-            listaEps.innerHTML = "";
-            for (let i = (serie.start || 1); i <= serie.total; i++) {
-                let n = (serie.tipo === 'zero' && i < 10) ? "0" + i : i;
-                let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${serie.pasta}/${n}.mp4/index.m3u8`;
-                let btn = document.createElement('button');
-                btn.innerText = i;
-                btn.onclick = () => playVideo(url);
-                listaEps.appendChild(btn);
-            }
+        function pularAgora() {
+            clearInterval(timer);
+            document.getElementById('next-overlay').style.display = 'none';
+            if(lastBtn && lastBtn.nextElementSibling) lastBtn.nextElementSibling.click();
         }
 
-        function playVideo(url) {
+        function cancelarPulo() {
+            clearInterval(timer);
+            document.getElementById('next-overlay').style.display = 'none';
+        }
+
+        function playVideo(url, time = 0, btn = null) {
+            lastBtn = btn;
             if(hls) hls.destroy();
             hls = new Hls();
             hls.loadSource(url);
             hls.attachMedia(video);
-            video.onloadedmetadata = () => {
-                let last = JSON.parse(localStorage.getItem('last_pos'));
-                if (last && last.url === url) video.currentTime = last.time;
-                video.play();
-            };
-            document.getElementById('interface').classList.add('oculto');
+            video.currentTime = time;
+            video.play();
+            window.scrollTo(0, 0);
         }
+
+        function playHistorico() {
+            let last = JSON.parse(localStorage.getItem('last_pos'));
+            if (last) playVideo(last.url, last.time);
+        }
+
+        function verEps(s) {
+            document.getElementById('interface').style.display = 'none';
+            document.getElementById('eps-view').style.display = 'block';
+            const grid = document.getElementById('btns-eps');
+            grid.innerHTML = "";
+            for (let i = (s.start || 1); i <= s.total; i++) {
+                let n = (i < 10 && !s.start) ? "0"+i : i;
+                let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${s.pasta}/${n}.mp4/index.m3u8`;
+                let btn = document.createElement('button');
+                btn.innerText = i;
+                btn.onclick = function() { playVideo(url, 0, this); };
+                grid.appendChild(btn);
+            }
+        }
+
+        function voltar() {
+            document.getElementById('interface').style.display = 'block';
+            document.getElementById('eps-view').style.display = 'none';
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem('last_pos')) document.getElementById('div-continuar').style.display = 'block';
+            const lista = document.getElementById('lista-series');
+            series.forEach(s => {
+                let div = document.createElement('div');
+                div.className = 'serie-card';
+                div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
+                div.onclick = () => verEps(s);
+                lista.appendChild(div);
+            });
+        };
     </script>
 </body>
 </html>
