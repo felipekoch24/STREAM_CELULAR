@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TV Stream Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; touch-action: manipulation; }
+        
+        /* Player e Controle de Toque */
+        #video-container { position: relative; width: 100vw; height: 100vh; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* Overlay de Toque Transparente */
+        #touch-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        
+        #interface { position: absolute; bottom: 0; width: 100%; height: 75vh; background: rgba(0,0,0,0.98); padding: 15px; overflow-y: auto; z-index: 10; }
+        #banner-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px; }
+        .banner { min-width: 150px; height: 200px; border-radius: 8px; border: 2px solid #444; object-fit: cover; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; margin-top: 15px; }
+        button { padding: 15px; background: #222; border: none; color: white; border-radius: 4px; font-weight: bold; }
+        button:active { background: #ff3e3e; }
+        .oculto { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="video-container">
+        <video id="video" playsinline></video>
+        <div id="touch-layer"></div>
+    </div>
+
+    <div id="interface">
+        <h3>Séries:</h3>
+        <div id="banner-container"></div>
+        <hr>
+        <h3>Episódios:</h3>
+        <div id="btns-eps" class="grid"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const touchLayer = document.getElementById('touch-layer');
+        const interfaceDiv = document.getElementById('interface');
+        const container = document.getElementById('banner-container');
+        const listaEps = document.getElementById('btns-eps');
+        let hls = new Hls();
+
+        const series = [
+            { nome: "Tintim", img: "https://static.wikia.nocookie.net/dublagem/images/6/63/Tintim.jpg/revision/latest?cb=20240623151337&path-prefix=pt-br", pasta: "a/as-aventuras-de-tintim-dublado", total: 39, tipo: "zero" },
+            { nome: "Yomi", img: "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/cf01037046bf9885e1ddbc3c1753610e.png", pasta: "y/yomi-no-tsugai", total: 12, tipo: "zero" },
+            { nome: "Invencivel", img: "https://i.ytimg.com/vi/Xg8aWV14vSs/maxresdefault.jpg", pasta: "i/invencivel-4-dublado", total: 8, tipo: "zero" },
+            { nome: "Pantera", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTKlP0fX0wkJMcFT5d2lKmz8j0iBPgHq7wIwBlLfBQbCA&s=10", pasta: "a/a-pantera-cor-de-rosa", total: 129, tipo: "zero" },
+            { nome: "One Piece", img: "https://m.media-amazon.com/images/M/MV5BMTNjNGU4NTUtYmVjMy00YjRiLTkxMWUtNzZkMDNiYjZhNmViXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", pasta: "o/one-piece", total: 1167, start: 1003, tipo: "puro" }
+        ];
+
+        // Controle de toque no vídeo
+        let tapCount = 0;
+        touchLayer.onclick = () => {
+            tapCount++;
+            setTimeout(() => {
+                if (tapCount === 1) { // 1 toque: Pausa/Play
+                    video.paused ? video.play() : video.pause();
+                } else if (tapCount === 2) { // 2 toques: Abre menu
+                    interfaceDiv.classList.remove('oculto');
+                }
+                tapCount = 0;
+            }, 300);
+        };
+
+        // Render Banners
+        series.forEach(s => {
+            let img = document.createElement('img');
+            img.src = s.img;
+            img.className = 'banner';
+            img.onclick = () => renderEps(s);
+            container.appendChild(img);
+        });
+
+        function renderEps(serie) {
+            listaEps.innerHTML = "";
+            for (let i = (serie.start || 1); i <= serie.total; i++) {
+                let n = (serie.tipo === 'zero' && i < 10) ? "0" + i : i;
+                let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${serie.pasta}/${n}.mp4/index.m3u8`;
+                let btn = document.createElement('button');
+                btn.innerText = i;
+                btn.onclick = () => {
+                    if(hls) hls.destroy();
+                    hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    video.play();
+                    interfaceDiv.classList.add('oculto');
+                };
+                listaEps.appendChild(btn);
+            }
+        }
+    </script>
+</body>
+</html>
