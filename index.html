@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stream Mobile Pro</title>
+    <title>STREAM FELIPE MOBILE</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
@@ -41,17 +41,26 @@
 
     <script>
         const video = document.getElementById('video');
+        const listaSeries = document.getElementById('lista-series');
         let hls = new Hls();
         let timer = null;
         let lastBtn = null;
 
-        const series = [
-            { nome: "Tintim", img: "https://static.wikia.nocookie.net/dublagem/images/6/63/Tintim.jpg/revision/latest?cb=20240623151337&path-prefix=pt-br", pasta: "a/as-aventuras-de-tintim-dublado", total: 39 },
-            { nome: "Yomi", img: "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/cf01037046bf9885e1ddbc3c1753610e.png", pasta: "y/yomi-no-tsugai", total: 12 },
-            { nome: "Invencivel", img: "https://i.ytimg.com/vi/Xg8aWV14vSs/maxresdefault.jpg", pasta: "i/invencivel-4-dublado", total: 8 },
-            { nome: "Pantera", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTKlP0fX0wkJMcFT5d2lKmz8j0iBPgHq7wIwBlLfBQbCA&s=10", pasta: "a/a-pantera-cor-de-rosa", total: 129 },
-            { nome: "One Piece", img: "https://m.media-amazon.com/images/M/MV5BMTNjNGU4NTUtYmVjMy00YjRiLTkxMWUtNzZkMDNiYjZhNmViXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", pasta: "o/one-piece", total: 1167, start: 1003 }
-        ];
+        // Carrega o JSON e popula a tela
+        fetch('series.json')
+            .then(response => response.json())
+            .then(series => {
+                if (localStorage.getItem('last_pos')) document.getElementById('div-continuar').style.display = 'block';
+                
+                series.forEach(s => {
+                    let div = document.createElement('div');
+                    div.className = 'serie-card';
+                    div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
+                    div.onclick = () => verEps(s);
+                    listaSeries.appendChild(div);
+                });
+            })
+            .catch(err => console.error("Erro ao carregar series.json:", err));
 
         video.ontimeupdate = () => {
             if (video.currentTime > 5) localStorage.setItem('last_pos', JSON.stringify({url: video.currentSrc, time: video.currentTime}));
@@ -113,18 +122,6 @@
             document.getElementById('interface').style.display = 'block';
             document.getElementById('eps-view').style.display = 'none';
         }
-
-        window.onload = () => {
-            if (localStorage.getItem('last_pos')) document.getElementById('div-continuar').style.display = 'block';
-            const lista = document.getElementById('lista-series');
-            series.forEach(s => {
-                let div = document.createElement('div');
-                div.className = 'serie-card';
-                div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
-                div.onclick = () => verEps(s);
-                lista.appendChild(div);
-            });
-        };
     </script>
 </body>
 </html>
