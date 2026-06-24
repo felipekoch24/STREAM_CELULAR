@@ -115,29 +115,42 @@
         });
     }
 
-    function verEps(s) {
+   function verEps(s) {
         document.getElementById('interface').style.display = 'none';
         document.getElementById('eps-view').style.display = 'block';
         const grid = document.getElementById('btns-eps');
         grid.innerHTML = "";
-        (s.temporadas || [s]).forEach(item => {
-            let btn = document.createElement('button');
-            btn.innerText = s.temporadas ? "TEMP " + item.n : "EPISÓDIOS";
-            btn.onclick = () => {
-                grid.innerHTML = "";
-                for (let i = (item.start || 1); i <= item.total; i++) {
-                    let n = (i < 10 && !item.start) ? "0" + i : i;
-                    let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${item.pasta}/${n}.mp4/index.m3u8`;
-                    let b = document.createElement('button');
-                    b.innerText = i;
-                    b.onclick = function() { modoAleatorio = false; playVideo(url, 0, this, s.nome); };
-                    grid.appendChild(b);
-                }
-            };
-            grid.appendChild(btn);
-        });
+
+        if (s.temporadas) {
+            // Se tem temporadas, cria botão para cada uma
+            s.temporadas.forEach(temp => {
+                let btn = document.createElement('button');
+                btn.innerText = "TEMP " + temp.n;
+                btn.onclick = () => renderizarGradeEpisodios(temp, s.nome);
+                grid.appendChild(btn);
+            });
+        } else {
+            // Se é série única, já renderiza os eps
+            renderizarGradeEpisodios(s, s.nome);
+        }
     }
 
+    function renderizarGradeEpisodios(item, nomeSerie) {
+        const grid = document.getElementById('btns-eps');
+        grid.innerHTML = "";
+        const inicio = item.start || 1;
+        for (let i = inicio; i <= item.total; i++) {
+            let n = (i < 10 && !item.start) ? "0" + i : i;
+            let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${item.pasta}/${n}.mp4/index.m3u8`;
+            let b = document.createElement('button');
+            b.innerText = i;
+            b.onclick = function() { 
+                modoAleatorio = false; 
+                playVideo(url, 0, this, nomeSerie); 
+            };
+            grid.appendChild(b);
+        }
+    }
     function pularAgora() {
         clearInterval(timer);
         document.getElementById('next-overlay').style.display = 'none';
