@@ -6,6 +6,15 @@
     <title>STREAM FELIPE MOBILE</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
+        /* Adicione isso na sua tag <style> */
+button:active {
+    background: #e50914 !important; /* Cor de destaque ao clicar */
+    transform: scale(0.95); /* Efeito de pressão */
+}
+
+#btns-eps button {
+    transition: background 0.3s;
+}
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
         video { width: 100%; height: 250px; background: #000; display: block; }
         .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; }
@@ -102,21 +111,47 @@
             let last = JSON.parse(localStorage.getItem('last_pos'));
             if (last) playVideo(last.url, last.time);
         }
-
         function verEps(s) {
-            document.getElementById('interface').style.display = 'none';
-            document.getElementById('eps-view').style.display = 'block';
-            const grid = document.getElementById('btns-eps');
-            grid.innerHTML = "";
-            for (let i = (s.start || 1); i <= s.total; i++) {
-                let n = (i < 10 && !s.start) ? "0"+i : i;
-                let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${s.pasta}/${n}.mp4/index.m3u8`;
-                let btn = document.createElement('button');
-                btn.innerText = i;
-                btn.onclick = function() { playVideo(url, 0, this); };
-                grid.appendChild(btn);
-            }
-        }
+    document.getElementById('interface').style.display = 'none';
+    document.getElementById('eps-view').style.display = 'block';
+    const grid = document.getElementById('btns-eps');
+    grid.innerHTML = "";
+
+    if (s.temporadas) {
+        // Se tem temporadas, cria botões para escolher a temporada
+        s.temporadas.forEach(temp => {
+            let btn = document.createElement('button');
+            btn.innerText = "TEMP " + temp.n;
+            btn.style.background = "#e50914";
+            btn.onclick = () => carregarEpisodiosDaTemp(temp);
+            grid.appendChild(btn);
+        });
+    } else {
+        // Se NÃO tem temporadas (como Tintim, Pantera, etc), carrega direto
+        carregarEpisodiosDaTemp(s);
+    }
+}
+
+function carregarEpisodiosDaTemp(item) {
+    const grid = document.getElementById('btns-eps');
+    grid.innerHTML = "";
+    
+    // Usa 'item.start' se existir, ou começa do 1
+    const inicio = item.start || 1;
+    
+    for (let i = inicio; i <= item.total; i++) {
+        let n = (i < 10 && !item.start) ? "0" + i : i;
+        let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${item.pasta}/${n}.mp4/index.m3u8`;
+        
+        let btn = document.createElement('button');
+        btn.innerText = i;
+        btn.onclick = function() { playVideo(url, 0, this); };
+        grid.appendChild(btn);
+    }
+}
+
+      
+
 
         function voltar() {
             document.getElementById('interface').style.display = 'block';
