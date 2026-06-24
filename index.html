@@ -6,15 +6,10 @@
     <title>STREAM FELIPE MOBILE</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* Adicione isso na sua tag <style> */
-button:active {
-    background: #e50914 !important; /* Cor de destaque ao clicar */
-    transform: scale(0.95); /* Efeito de pressão */
-}
-
-#btns-eps button {
-    transition: background 0.3s;
-}
+        video::-webkit-media-controls {
+            display: flex !important;
+        }
+        button:active { background: #e50914 !important; transform: scale(0.95); }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
         video { width: 100%; height: 250px; background: #000; display: block; }
         .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; }
@@ -36,6 +31,8 @@ button:active {
     </div>
 
     <div id="interface">
+        <button onclick="iniciarNostalgia()" style="width:100%; padding:20px; background:#e50914; color:white; border:none; font-weight:bold; margin-bottom:10px;">📺 SESSÃO NOSTALGIA (ALEATÓRIO)</button>
+
         <div id="div-continuar" style="display:none;" class="section-title">
             <button onclick="playHistorico()" style="width:100%; background:#e50914; padding:15px; border:none; color:white; font-weight:bold;">CONTINUAR ASSISTINDO</button>
         </div>
@@ -49,76 +46,100 @@ button:active {
     </div>
 
     <script>
-        const video = document.getElementById('video');
-        const listaSeries = document.getElementById('lista-series');
-        let hls = new Hls();
-        let timer = null;
-        let lastBtn = null;
+       const video = document.getElementById('video');
+const listaSeries = document.getElementById('lista-series');
+const listaComerciais = ["vinheta1.mp4", "intervalar1.mp4", "intervalo2.mp4", "propaganda1.mp4", "propaganda2.mp4", "propaganda3.mp4"];
 
-        // Carrega o JSON e popula a tela
-        fetch('series.json')
-            .then(response => response.json())
-            .then(series => {
-                if (localStorage.getItem('last_pos')) document.getElementById('div-continuar').style.display = 'block';
-                
-                series.forEach(s => {
-                    let div = document.createElement('div');
-                    div.className = 'serie-card';
-                    div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
-                    div.onclick = () => verEps(s);
-                    listaSeries.appendChild(div);
-                });
-            })
-            .catch(err => console.error("Erro ao carregar series.json:", err));
+let hls = null;
+let timer = null;
+let lastBtn = null;
+let modoAleatorio = false;
+let tocandoComercial = false;
 
-        video.ontimeupdate = () => {
-            if (video.currentTime > 5) localStorage.setItem('last_pos', JSON.stringify({url: video.currentSrc, time: video.currentTime}));
-        };
+fetch('series.json').then(res => res.json()).then(series => {
+    if (localStorage.getItem('last_pos')) document.getElementById('div-continuar').style.display = 'block';
+    series.forEach(s => {
+        let div = document.createElement('div');
+        div.className = 'serie-card';
+        div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
+        div.onclick = () => verEps(s);
+        listaSeries.appendChild(div);
+    });
+});
 
-        video.onended = () => {
-            document.getElementById('next-overlay').style.display = 'block';
-            let c = 10;
-            timer = setInterval(() => {
-                c--;
-                document.getElementById('count').innerText = c;
-                if(c <= 0) pularAgora();
-            }, 1000);
-        };
+function iniciarNostalgia() {
+    modoAleatorio = true;
+    tocandoComercial = false;
+    tocarAleatorio();
+}
 
-        function pularAgora() {
-            clearInterval(timer);
-            document.getElementById('next-overlay').style.display = 'none';
-            if(lastBtn && lastBtn.nextElementSibling) lastBtn.nextElementSibling.click();
+video.onended = () => {
+    if (modoAleatorio) {
+        if (!tocandoComercial) {
+            tocandoComercial = true;
+            playVideo(listaComerciais[Math.floor(Math.random() * listaComerciais.length)]);
+        } else {
+            tocandoComercial = false;
+            tocarAleatorio();
         }
+    } else {
+        document.getElementById('next-overlay').style.display = 'block';
+        let c = 10;
+        timer = setInterval(() => {
+            c--; document.getElementById('count').innerText = c;
+            if(c <= 0) pularAgora();
+        }, 1000);
+    }
+};
 
-        function cancelarPulo() {
-            clearInterval(timer);
-            document.getElementById('next-overlay').style.display = 'none';
-        }
+function tocarAleatorio() {
+    fetch('series.json').then(res => res.json()).then(series => {
+        let s = series[Math.floor(Math.random() * series.length)];
+        let alvo = s.temporadas ? s.temporadas[Math.floor(Math.random() * s.temporadas.length)] : s;
+        let ep = Math.floor(Math.random() * alvo.total) + (alvo.start || 1);
+        let n = (ep < 10 && !alvo.start) ? "0" + ep : ep;
+        playVideo(`https://cdn-s01.mywallpaper-4k-image.net/stream/${alvo.pasta}/${n}.mp4/index.m3u8`);
+    });
+}
 
-        function playVideo(url, time = 0, btn = null) {
-            lastBtn = btn;
-            if(hls) hls.destroy();
-            hls = new Hls();
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            video.currentTime = time;
-            video.play();
-            window.scrollTo(0, 0);
-        }
+function playVideo(url, time = 0, btn = null) {
+    lastBtn = btn;
+    if (hls) { hls.destroy(); hls = null; }
 
-        function playHistorico() {
-            let last = JSON.parse(localStorage.getItem('last_pos'));
-            if (last) playVideo(last.url, last.time);
-        }
-        function verEps(s) {
+    if (url.includes('.m3u8')) {
+        hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+    } else {
+        video.src = url;
+    }
+    video.currentTime = time;
+    video.play();
+    window.scrollTo(0, 0);
+}
+
+function pularAgora() {
+    clearInterval(timer);
+    document.getElementById('next-overlay').style.display = 'none';
+    if(lastBtn && lastBtn.nextElementSibling) lastBtn.nextElementSibling.click();
+}
+
+function cancelarPulo() {
+    clearInterval(timer);
+    document.getElementById('next-overlay').style.display = 'none';
+}
+
+function playHistorico() {
+    let last = JSON.parse(localStorage.getItem('last_pos'));
+    if (last) playVideo(last.url, last.time);
+}
+
+function verEps(s) {
     document.getElementById('interface').style.display = 'none';
     document.getElementById('eps-view').style.display = 'block';
     const grid = document.getElementById('btns-eps');
     grid.innerHTML = "";
-
     if (s.temporadas) {
-        // Se tem temporadas, cria botões para escolher a temporada
         s.temporadas.forEach(temp => {
             let btn = document.createElement('button');
             btn.innerText = "TEMP " + temp.n;
@@ -127,7 +148,6 @@ button:active {
             grid.appendChild(btn);
         });
     } else {
-        // Se NÃO tem temporadas (como Tintim, Pantera, etc), carrega direto
         carregarEpisodiosDaTemp(s);
     }
 }
@@ -135,28 +155,21 @@ button:active {
 function carregarEpisodiosDaTemp(item) {
     const grid = document.getElementById('btns-eps');
     grid.innerHTML = "";
-    
-    // Usa 'item.start' se existir, ou começa do 1
     const inicio = item.start || 1;
-    
     for (let i = inicio; i <= item.total; i++) {
         let n = (i < 10 && !item.start) ? "0" + i : i;
         let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${item.pasta}/${n}.mp4/index.m3u8`;
-        
         let btn = document.createElement('button');
         btn.innerText = i;
-        btn.onclick = function() { playVideo(url, 0, this); };
+        btn.onclick = function() { modoAleatorio = false; playVideo(url, 0, this); };
         grid.appendChild(btn);
     }
 }
 
-      
-
-
-        function voltar() {
-            document.getElementById('interface').style.display = 'block';
-            document.getElementById('eps-view').style.display = 'none';
-        }
+function voltar() {
+    document.getElementById('interface').style.display = 'block';
+    document.getElementById('eps-view').style.display = 'none';
+}
     </script>
 </body>
 </html>
