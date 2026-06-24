@@ -49,7 +49,18 @@
     const listaComerciais = ["vinheta1.mp4", "intervalo1.mp4", "intervalo2.mp4", "propaganda1.mp4", "propaganda2.mp4", "propaganda3.mp4"];
     
     let hls = null, timer = null, lastBtn = null, modoAleatorio = false, tocandoComercial = false, currentSerieImg = "";
-
+video.onended = () => {
+    if (!modoAleatorio) {
+        document.getElementById('next-overlay').style.display = 'block';
+        let c = 10;
+        document.getElementById('count').innerText = c;
+        timer = setInterval(() => {
+            c--; 
+            document.getElementById('count').innerText = c;
+            if(c <= 0) pularAgora();
+        }, 1000);
+    }
+};
     document.addEventListener("DOMContentLoaded", function() {
         carregarHistorico();
     });
@@ -64,47 +75,60 @@
         });
     });
 
-    function playVideo(url, time = 0, btn = null) {
-        localStorage.setItem('last_pos', JSON.stringify({url, time, img: currentSerieImg}));
-        
-        // ATUALIZAÇÃO: Garante que o botão apareça assim que o vídeo começar
-        carregarHistorico();
-        
-        if (hls) { hls.destroy(); hls = null; }
-        if (url.includes('.m3u8')) {
-            hls = new Hls();
-            hls.loadSource(url);
-            hls.attachMedia(video);
-        } else { video.src = url; }
-        
-        video.currentTime = time;
-        video.play();
-        window.scrollTo(0, 0);
-    }
+    function playVideo(url, time = 0, btn = null, nomeSerie = "Desconhecido") {
+    if (btn) lastBtn = btn; 
 
+    // Recupera o histórico como uma ARRAY (lista), não como objeto
+    let historico = JSON.parse(localStorage.getItem('meu_historico')) || [];
+    
+    // Cria um objeto de registro
+    let novoRegistro = { 
+        url: url,
+        nome: nomeSerie, 
+        time: video.currentTime, 
+        img: currentSerieImg, 
+        timestamp: Date.now() 
+    };
+
+    // Adiciona ao topo da lista (os mais recentes primeiro)
+    historico.unshift(novoRegistro);
+    
+    // Limita o histórico aos últimos 20 itens para não pesar o navegador
+    if (historico.length > 20) historico.pop();
+
+    localStorage.setItem('meu_historico', JSON.stringify(historico));
+
+    // ... (restante do código de HLS e play) ...
+}
     function continuarAssistindo() {
-        let last = JSON.parse(localStorage.getItem('last_pos'));
+        let last = JSON.parse(localStorage.getItem('meu_historico'));
         if (last) {
-            currentSerieImg = last.img;
-            playVideo(last.url, last.time);
+            currentSerieImg = meu_historico.img;
+            playVideo(meu_historico.url, meu_historico.time);
         }
     }
 
-    function carregarHistorico() {
-        let last = JSON.parse(localStorage.getItem('last_pos'));
-        let div = document.getElementById('div-continuar');
-        if (last && last.img) {
-            div.style.display = 'block';
-            div.innerHTML = `
-                <button onclick="continuarAssistindo()" 
-                        style="width:100%; background:#1a1a1a; padding:10px; border:none; display:flex; align-items:center; color:white;">
-                    <img src="${last.img}" style="width:50px; height:70px; margin-right:10px; border-radius:4px;">
-                    <span>CONTINUAR ASSISTINDO</span>
+  function carregarHistorico() {
+    let historico = JSON.parse(localStorage.getItem('meu_historico')) || [];
+    let div = document.getElementById('div-continuar');
+    
+    if (historico.length > 0) {
+        div.style.display = 'block';
+        div.innerHTML = '<div class="section-title">CONTINUAR ASSISTINDO</div>';
+        
+        // Exibe os itens salvos
+        historico.forEach(item => {
+            div.innerHTML += `
+                <button onclick="playVideo('${item.url}', ${item.time})" style="width:100%; display:flex; align-items:center; background:#1a1a1a; margin-bottom:5px;">
+                    <img src="${item.img}" style="width:50px; height:70px; margin-right:10px;">
+                    <div style="text-align:left;">
+                        <div style="font-size:12px;">${item.nome}</div>
+                        <div style="font-size:10px; color:#888;">RETOMAR EP.</div>
+                    </div>
                 </button>`;
-        } else {
-            div.style.display = 'none';
-        }
+        });
     }
+}
 
     function filtrarSeries() {
         let input = document.getElementById('search-bar').value.toLowerCase();
@@ -113,11 +137,39 @@
         });
     }
 
-    function iniciarNostalgia() { modoAleatorio = true; tocandoComercial = false; tocarAleatorio(); }
-    function pularAgora() { clearInterval(timer); document.getElementById('next-overlay').style.display = 'none'; if(lastBtn && lastBtn.nextElementSibling) lastBtn.nextElementSibling.click(); }
-    function cancelarPulo() { clearInterval(timer); document.getElementById('next-overlay').style.display = 'none'; }
-    function voltar() { document.getElementById('interface').style.display = 'block'; document.getElementById('eps-view').style.display = 'none'; }
+    function iniciarNostalgia() {
+    modoAleatorio = true;
+    tocandoComercial = false;
+    // Garante que temos os dados antes de sortear
+    fetch('series.json').then(res => res.json()).then(series => {
+        let s = series[Math.floor(Math.random() * series.length)];
+        let alvo = s.temporadas ? s.temporadas[Math.floor(Math.random() * s.temporadas.length)] : s;
+        let ep = Math.floor(Math.random() * alvo.total) + (alvo.start || 1);
+        let n = (ep < 10 && !alvo.start) ? "0" + ep : ep;
+        currentSerieImg = s.img; // Sincroniza a capa
+        playVideo(`https://cdn-s01.mywallpaper-4k-image.net/stream/${alvo.pasta}/${n}.mp4/index.m3u8`);
+    });
+}
+    function pularAgora() {
+    clearInterval(timer);
+    document.getElementById('next-overlay').style.display = 'none';
+    // Procura o próximo botão na grade de episódios
+    if(lastBtn && lastBtn.nextElementSibling) {
+        lastBtn.nextElementSibling.click();
+    }
+}
 
+    function cancelarPulo() {
+        clearInterval(timer);
+        document.getElementById('next-overlay').style.display = 'none';
+    }
+
+    function voltar() {
+        clearInterval(timer); // Garante que nenhum timer fique rodando
+        document.getElementById('next-overlay').style.display = 'none';
+        document.getElementById('interface').style.display = 'block';
+        document.getElementById('eps-view').style.display = 'none';
+    }
     function verEps(s) {
         document.getElementById('interface').style.display = 'none';
         document.getElementById('eps-view').style.display = 'block';
