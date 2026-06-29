@@ -9,26 +9,21 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
         
-        /* 🎮 Controles estilo MX Player */
-        .video-container { position: relative; width: 100%; background: #000; }
-        video { width: 100%; height: auto; display: block; }
-        .player-controls { 
-            position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            padding: 15px; z-index: 10;
+        /* 🎥 Tela cheia e controles nativos */
+        .video-container { 
+            position: relative; 
+            width: 100vw; 
+            height: 56.25vw; /* Proporção 16:9 */
+            max-height: 100vh;
+            background: #000;
         }
-        .progress-bar { 
-            width: 100%; height: 6px; background: #444; border-radius: 3px; 
-            cursor: pointer; margin-bottom: 10px; overflow: hidden;
+        video { 
+            width: 100%; 
+            height: 100%; 
+            display: block;
+            object-fit: contain;
+            background: #000;
         }
-        .progress-fill { height: 100%; background: #e50914; width: 0%; border-radius: 3px; }
-        .time-info { font-size: 14px; margin-bottom: 10px; text-align: center; }
-        .control-buttons { display: flex; justify-content: center; gap: 15px; }
-        .control-buttons button { 
-            background: #e50914; border: none; border-radius: 50%; 
-            width: 40px; height: 40px; font-size: 18px; color: white;
-        }
-        button:active { transform: scale(0.95); }
 
         /* 📱 Interface */
         .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; font-size: 18px; }
@@ -50,20 +45,8 @@
 </head>
 <body>
     <div class="video-container">
-        <video id="video" playsinline></video>
-        <div class="player-controls" id="player-controls">
-            <div class="progress-bar" id="progress-bar">
-                <div class="progress-fill" id="progress-fill"></div>
-            </div>
-            <div class="time-info">
-                <span id="current-time">00:00</span> / <span id="duration">00:00</span>
-            </div>
-            <div class="control-buttons">
-                <button onclick="video.currentTime -= 10">⏪</button>
-                <button id="play-pause" onclick="togglePlay()">▶</button>
-                <button onclick="video.currentTime += 10">⏩</button>
-            </div>
-        </div>
+        <!-- ✅ Controles nativos do Android ativados -->
+        <video id="video" playsinline controls controlsList="nodownload"></video>
     </div>
 
     <div id="next-overlay">
@@ -101,14 +84,10 @@
     const listaContinuar = document.getElementById('lista-continuar');
     const overlay = document.getElementById('next-overlay');
     const contadorEl = document.getElementById('count');
-    const progressBar = document.getElementById('progress-bar');
-    const progressFill = document.getElementById('progress-fill');
-    const currentTimeEl = document.getElementById('current-time');
-    const durationEl = document.getElementById('duration');
-    const playPauseBtn = document.getElementById('play-pause');
 
     let hls = null, timer = null, episodioAtual = null, serieAtual = null, temporadaAtual = null, paginaAtual = 1;
     const EPISODIOS_POR_PAGINA = 10;
+    const MAX_CACHE = 20; // ✅ Máximo de 20 arquivos em cache
 
     // === CARREGAR E ORDENAR ALFABETICAMENTE ===
     document.addEventListener("DOMContentLoaded", () => {
@@ -116,7 +95,6 @@
         fetch('series.json')
             .then(res => res.json())
             .then(series => {
-                // Ordena A-Z ignorando maiúsculas/acentos
                 series.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
                 series.forEach(s => {
                     const div = document.createElement('div');
@@ -142,6 +120,7 @@
         };
         localStorage.setItem('meu_historico', JSON.stringify(historico));
         carregarHistorico();
+        limparCacheAntigo(); // Mantém só os últimos 20
     }
 
     function carregarHistorico() {
@@ -178,10 +157,17 @@
         });
     }
 
-    // === CONTROLES DO PLAYER ===
-    function togglePlay() {
-        if (video.paused) { video.play(); playPauseBtn.innerText = "⏸"; }
-        else { video.pause(); playPauseBtn.innerText = "▶"; }
+    // === LIMPAR CACHE ANTIGO ===
+    function limparCacheAntigo() {
+        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
+        const itens = Object.entries(historico).sort((a, b) => b[1].ultimaVisualizacao - a[1].ultimaVisualizacao);
+        if (itens.length > MAX_CACHE) {
+            const paraRemover = itens.slice(MAX_CACHE);
+            paraRemover.forEach(([url]) => {
+                delete historico[url];
+            });
+            localStorage.setItem('meu_historico', JSON.stringify(historico));
+        }
     }
 
     function formatarTempo(segundos) {
@@ -189,11 +175,6 @@
         const s = Math.floor(segundos % 60);
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
-
-    progressBar.addEventListener('click', (e) => {
-        const pos = (e.offsetX / progressBar.offsetWidth) * video.duration;
-        video.currentTime = pos;
-    });
 
     // === REPRODUÇÃO DE VÍDEO ===
     function tocarEpisodio(url, tempoInicio = 0, nomeSerie = "", numeroEp = 0, img = "") {
@@ -203,13 +184,25 @@
         if (hls) { hls.destroy(); hls = null; }
 
         if (url.includes('.m3u8')) {
-            hls = new Hls();
+            hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: false,
+                backBufferLength: 300,
+                maxBufferLength: 60,
+                maxMaxBufferLength: 1200,
+                maxBufferSize: 150 * 1000 * 1000, // 150MB de cache
+                xhrSetup: function(xhr) {
+                    xhr.withCredentials = false;
+                    xhr.setRequestHeader('Origin', window.location.origin);
+                    xhr.setRequestHeader('Referer', window.location.href);
+                }
+            });
+
             hls.loadSource(url);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 if (tempoInicio > 0) video.currentTime = tempoInicio;
                 video.play().catch(e => console.log("Autoplay bloqueado:", e));
-                playPauseBtn.innerText = "⏸";
             });
         } else {
             video.src = url;
@@ -217,18 +210,13 @@
             video.onloadedmetadata = () => {
                 if (tempoInicio > 0) video.currentTime = tempoInicio;
                 video.play().catch(e => console.log("Erro ao reproduzir:", e));
-                playPauseBtn.innerText = "⏸";
             };
         }
 
-        // Atualiza barra e tempo
+        // Salva progresso automaticamente
         video.ontimeupdate = () => {
             const atual = video.currentTime;
             const total = video.duration || 0;
-            progressFill.style.width = total ? `${(atual / total) * 100}%` : "0%";
-            currentTimeEl.innerText = formatarTempo(atual);
-            durationEl.innerText = formatarTempo(total);
-
             if (!video.paused && total > 10) {
                 salvarProgresso(url, atual, nomeSerie, numeroEp, img);
             }
@@ -351,6 +339,7 @@
 
     // === OUTRAS FUNÇÕES ===
     function voltar() {
+        video.pause();
         document.getElementById('interface').style.display = 'block';
         document.getElementById('eps-view').style.display = 'none';
         carregarHistorico();
