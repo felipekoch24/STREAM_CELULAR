@@ -8,13 +8,34 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
-        video { width: 100%; height: 220px; background: #000; display: block; }
+        
+        /* 🎮 Controles estilo MX Player */
+        .video-container { position: relative; width: 100%; background: #000; }
+        video { width: 100%; height: auto; display: block; }
+        .player-controls { 
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            padding: 15px; z-index: 10;
+        }
+        .progress-bar { 
+            width: 100%; height: 6px; background: #444; border-radius: 3px; 
+            cursor: pointer; margin-bottom: 10px; overflow: hidden;
+        }
+        .progress-fill { height: 100%; background: #e50914; width: 0%; border-radius: 3px; }
+        .time-info { font-size: 14px; margin-bottom: 10px; text-align: center; }
+        .control-buttons { display: flex; justify-content: center; gap: 15px; }
+        .control-buttons button { 
+            background: #e50914; border: none; border-radius: 50%; 
+            width: 40px; height: 40px; font-size: 18px; color: white;
+        }
+        button:active { transform: scale(0.95); }
+
+        /* 📱 Interface */
         .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; font-size: 18px; }
         .serie-card { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #333; cursor: pointer; }
         .serie-card img { width: 55px; height: 75px; object-fit: cover; border-radius: 4px; margin-right: 12px; }
         .eps-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 15px; }
         button { padding: 12px; background: #333; color: #fff; border: none; border-radius: 4px; font-size: 15px; }
-        button:active { background: #e50914 !important; transform: scale(0.96); }
         .btn-ativo { background: #e50914 !important; border: 2px solid #fff !important; font-weight: bold; }
         #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 999; display: none; text-align: center; padding-top: 120px; }
         #next-overlay h2 { font-size: 22px; margin-bottom: 30px; }
@@ -28,7 +49,22 @@
     </style>
 </head>
 <body>
-    <video id="video" playsinline></video>
+    <div class="video-container">
+        <video id="video" playsinline></video>
+        <div class="player-controls" id="player-controls">
+            <div class="progress-bar" id="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="time-info">
+                <span id="current-time">00:00</span> / <span id="duration">00:00</span>
+            </div>
+            <div class="control-buttons">
+                <button onclick="video.currentTime -= 10">⏪</button>
+                <button id="play-pause" onclick="togglePlay()">▶</button>
+                <button onclick="video.currentTime += 10">⏩</button>
+            </div>
+        </div>
+    </div>
 
     <div id="next-overlay">
         <h2>Próximo episódio em <span id="count">10</span>s</h2>
@@ -37,8 +73,6 @@
     </div>
 
     <div id="interface">
-        <button onclick="iniciarNostalgia()" style="width:92%; margin:12px 4%; padding:18px; background:#e50914; color:white; border:none; font-weight:bold; border-radius:6px;">📺 SESSÃO NOSTALGIA</button>
-        
         <input type="text" id="search-bar" placeholder="🔍 PESQUISAR SÉRIE..." oninput="filtrarSeries()">
         
         <div id="div-continuar">
@@ -46,7 +80,7 @@
             <div id="lista-continuar"></div>
         </div>
         
-        <div class="section-title">📚 BIBLIOTECA</div>
+        <div class="section-title">📚 BIBLIOTECA (A-Z)</div>
         <div id="lista-series"></div>
     </div>
 
@@ -67,16 +101,23 @@
     const listaContinuar = document.getElementById('lista-continuar');
     const overlay = document.getElementById('next-overlay');
     const contadorEl = document.getElementById('count');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationEl = document.getElementById('duration');
+    const playPauseBtn = document.getElementById('play-pause');
 
     let hls = null, timer = null, episodioAtual = null, serieAtual = null, temporadaAtual = null, paginaAtual = 1;
     const EPISODIOS_POR_PAGINA = 10;
 
-    // === CARREGAR DADOS ===
+    // === CARREGAR E ORDENAR ALFABETICAMENTE ===
     document.addEventListener("DOMContentLoaded", () => {
         carregarHistorico();
         fetch('series.json')
             .then(res => res.json())
             .then(series => {
+                // Ordena A-Z ignorando maiúsculas/acentos
+                series.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
                 series.forEach(s => {
                     const div = document.createElement('div');
                     div.className = 'serie-card';
@@ -137,6 +178,23 @@
         });
     }
 
+    // === CONTROLES DO PLAYER ===
+    function togglePlay() {
+        if (video.paused) { video.play(); playPauseBtn.innerText = "⏸"; }
+        else { video.pause(); playPauseBtn.innerText = "▶"; }
+    }
+
+    function formatarTempo(segundos) {
+        const m = Math.floor(segundos / 60);
+        const s = Math.floor(segundos % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    progressBar.addEventListener('click', (e) => {
+        const pos = (e.offsetX / progressBar.offsetWidth) * video.duration;
+        video.currentTime = pos;
+    });
+
     // === REPRODUÇÃO DE VÍDEO ===
     function tocarEpisodio(url, tempoInicio = 0, nomeSerie = "", numeroEp = 0, img = "") {
         if (!url) return;
@@ -151,6 +209,7 @@
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 if (tempoInicio > 0) video.currentTime = tempoInicio;
                 video.play().catch(e => console.log("Autoplay bloqueado:", e));
+                playPauseBtn.innerText = "⏸";
             });
         } else {
             video.src = url;
@@ -158,20 +217,25 @@
             video.onloadedmetadata = () => {
                 if (tempoInicio > 0) video.currentTime = tempoInicio;
                 video.play().catch(e => console.log("Erro ao reproduzir:", e));
+                playPauseBtn.innerText = "⏸";
             };
         }
 
-        // Salva progresso a cada 5 segundos
-        clearInterval(timer);
-        timer = setInterval(() => {
-            if (!video.paused && video.duration > 10) {
-                salvarProgresso(url, video.currentTime, nomeSerie, numeroEp, img);
-            }
-        }, 5000);
+        // Atualiza barra e tempo
+        video.ontimeupdate = () => {
+            const atual = video.currentTime;
+            const total = video.duration || 0;
+            progressFill.style.width = total ? `${(atual / total) * 100}%` : "0%";
+            currentTimeEl.innerText = formatarTempo(atual);
+            durationEl.innerText = formatarTempo(total);
 
-        // Quando o vídeo acabar
+            if (!video.paused && total > 10) {
+                salvarProgresso(url, atual, nomeSerie, numeroEp, img);
+            }
+        };
+
+        // Quando acabar
         video.onended = () => {
-            clearInterval(timer);
             mostrarContagemProximo();
         };
 
@@ -221,14 +285,11 @@
             btn.innerText = numeroEp;
             btn.dataset.ep = numeroEp;
             btn.onclick = function() {
-                const nomeSerie = serieAtual.nome;
-                const img = serieAtual.img;
-                tocarEpisodio(url, 0, nomeSerie, numeroEp, img);
+                tocarEpisodio(url, 0, serieAtual.nome, numeroEp, serieAtual.img);
             };
             grid.appendChild(btn);
         }
 
-        // Controles de página
         const controles = document.getElementById('controles-pagina');
         controles.style.display = totalEp > EPISODIOS_POR_PAGINA ? 'flex' : 'none';
         document.getElementById('info-pagina').innerText = `Página ${pagina} de ${Math.ceil(totalEp / EPISODIOS_POR_PAGINA)}`;
@@ -263,12 +324,9 @@
                 pularAgora();
             }
         }, 1000);
-
-        overlay.onclick = () => { };
     }
 
     function pularAgora() {
-        clearInterval(timer);
         overlay.style.display = 'none';
         if (!episodioAtual || !temporadaAtual) return;
 
@@ -287,7 +345,6 @@
     }
 
     function cancelarPulo() {
-        clearInterval(timer);
         overlay.style.display = 'none';
         video.play();
     }
@@ -305,19 +362,6 @@
             const nome = card.querySelector('span').innerText.toLowerCase();
             card.style.display = nome.includes(termo) ? 'flex' : 'none';
         });
-    }
-
-    function iniciarNostalgia() {
-        fetch('series.json')
-            .then(res => res.json())
-            .then(series => {
-                const s = series[Math.floor(Math.random() * series.length)];
-                const temp = s.temporadas ? s.temporadas[Math.floor(Math.random() * s.temporadas.length)] : s;
-                const ep = Math.floor(Math.random() * temp.total) + (temp.start || 1);
-                const epFormatado = String(ep).padStart(2, '0');
-                const url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temp.pasta}/${epFormatado}.mp4/index.m3u8`;
-                tocarEpisodio(url, 0, s.nome, ep, s.img);
-            });
     }
 </script>
 </body>
