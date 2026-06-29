@@ -9,7 +9,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
         
-        /* 🎥 Tela cheia e controles nativos */
+        /* 🎥 Tela e vídeo */
         .video-container { 
             position: relative; 
             width: 100vw; 
@@ -29,9 +29,42 @@
         .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; font-size: 18px; }
         .serie-card { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #333; cursor: pointer; }
         .serie-card img { width: 55px; height: 75px; object-fit: cover; border-radius: 4px; margin-right: 12px; }
-        .eps-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 15px; }
-        button { padding: 12px; background: #333; color: #fff; border: none; border-radius: 4px; font-size: 15px; }
+        
+        /* 🎯 Grade de episódios com espaço para botão */
+        .eps-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 10px; 
+            padding: 15px; 
+        }
+        .ep-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .btn-ep { 
+            padding: 12px; 
+            background: #333; 
+            color: #fff; 
+            border: none; 
+            border-radius: 4px; 
+            font-size: 15px; 
+        }
         .btn-ativo { background: #e50914 !important; border: 2px solid #fff !important; font-weight: bold; }
+        .btn-offline {
+            padding: 6px;
+            font-size: 12px;
+            background: #222;
+            border: none;
+            border-radius: 3px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .btn-offline.carregado {
+            background: #2e7d32;
+            color: #fff;
+        }
+
         #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 999; display: none; text-align: center; padding-top: 120px; }
         #next-overlay h2 { font-size: 22px; margin-bottom: 30px; }
         #next-overlay button { width: 85%; padding: 18px; margin: 8px 0; font-size: 17px; }
@@ -45,7 +78,6 @@
 </head>
 <body>
     <div class="video-container">
-        <!-- ✅ Controles nativos do Android ativados -->
         <video id="video" playsinline controls controlsList="nodownload"></video>
     </div>
 
@@ -86,10 +118,11 @@
     const contadorEl = document.getElementById('count');
 
     let hls = null, timer = null, episodioAtual = null, serieAtual = null, temporadaAtual = null, paginaAtual = 1;
-    const EPISODIOS_POR_PAGINA = 10;
-    const MAX_CACHE = 20; // ✅ Máximo de 20 arquivos em cache
+    const EPISODIOS_POR_PAGINA = 12;
+    const MAX_CACHE = 20; // Limite máximo de episódios salvos
+    const CHAVE_CACHE = 'episodios_offline';
 
-    // === CARREGAR E ORDENAR ALFABETICAMENTE ===
+    // === CARREGAR E ORDENAR SÉRIES ===
     document.addEventListener("DOMContentLoaded", () => {
         carregarHistorico();
         fetch('series.json')
@@ -107,7 +140,7 @@
             .catch(err => console.error("Erro ao carregar series.json:", err));
     });
 
-    // === SALVAR E CARREGAR HISTÓRICO ===
+    // === GERENCIAR HISTÓRICO E CACHE ===
     function salvarProgresso(url, tempo, nomeSerie, numeroEp, img) {
         const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
         historico[url] = {
@@ -120,7 +153,7 @@
         };
         localStorage.setItem('meu_historico', JSON.stringify(historico));
         carregarHistorico();
-        limparCacheAntigo(); // Mantém só os últimos 20
+        limparCacheAntigo();
     }
 
     function carregarHistorico() {
@@ -137,7 +170,6 @@
         }
 
         itens.forEach(item => {
-            const porcentagem = Math.round((item.tempo / item.duracao) * 100);
             const minutos = Math.floor(item.tempo / 60);
             const segundos = String(Math.floor(item.tempo % 60)).padStart(2, '0');
             const div = document.createElement('div');
@@ -148,7 +180,7 @@
                     <div>
                         <div>${item.nomeSerie}</div>
                         <div>Ep ${item.numeroEp}</div>
-                        <div class="tempo-parado">Retomando em ${minutos}:${segundos} (${porcentagem}%)</div>
+                        <div class="tempo-parado">Retomando em ${minutos}:${segundos}</div>
                     </div>
                 </div>
             `;
@@ -157,17 +189,85 @@
         });
     }
 
-    // === LIMPAR CACHE ANTIGO ===
     function limparCacheAntigo() {
-        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
-        const itens = Object.entries(historico).sort((a, b) => b[1].ultimaVisualizacao - a[1].ultimaVisualizacao);
-        if (itens.length > MAX_CACHE) {
-            const paraRemover = itens.slice(MAX_CACHE);
-            paraRemover.forEach(([url]) => {
-                delete historico[url];
-            });
-            localStorage.setItem('meu_historico', JSON.stringify(historico));
+        const cacheSalvo = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
+        if (cacheSalvo.length > MAX_CACHE) {
+            const removidos = cacheSalvo.slice(0, cacheSalvo.length - MAX_CACHE);
+            const novos = cacheSalvo.slice(-MAX_CACHE);
+            localStorage.setItem(CHAVE_CACHE, JSON.stringify(novos));
+            console.log(`${removidos.length} episódios antigos removidos do cache`);
         }
+    }
+
+    function verificarCache(url) {
+        const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
+        return cache.includes(url);
+    }
+
+    function marcarComoCarregado(url) {
+        const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
+        if (!cache.includes(url)) {
+            cache.push(url);
+            localStorage.setItem(CHAVE_CACHE, JSON.stringify(cache));
+            limparCacheAntigo();
+        }
+    }
+
+    // === CARREGAR EPISÓDIO PARA OFFLINE ===
+    function carregarParaOffline(url, numeroEp, nomeSerie, img) {
+        if (verificarCache(url)) {
+            alert("✅ Já está salvo para ver offline!");
+            return;
+        }
+
+        if (!confirm("Deseja carregar todo o episódio para ver sem internet? Isso pode usar mais dados.")) return;
+
+        const tempHls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            maxBufferLength: 9999,
+            maxMaxBufferLength: 9999,
+            maxBufferSize: 500 * 1024 * 1024, // 500MB de espaço para carregar tudo
+            xhrSetup: xhr => {
+                xhr.withCredentials = false;
+                xhr.setRequestHeader('Origin', window.location.origin);
+            }
+        });
+
+        tempHls.loadSource(url);
+        tempHls.attachMedia(video);
+
+        tempHls.on(Hls.Events.MANIFEST_PARSED, () => {
+            console.log("Carregando episódio...");
+        });
+
+        tempHls.on(Hls.Events.FRAG_LOADED, () => {
+            const percent = video.buffered.length ? Math.round((video.buffered.end(0) / video.duration) * 100) : 0;
+            if (percent >= 98) {
+                marcarComoCarregado(url);
+                alert("✅ Episódio carregado! Agora pode ver sem internet.");
+                tempHls.destroy();
+                atualizarBotoesCache();
+            }
+        });
+
+        tempHls.on(Hls.Events.ERROR, () => {
+            alert("❌ Não foi possível carregar o episódio.");
+            tempHls.destroy();
+        });
+    }
+
+    function atualizarBotoesCache() {
+        document.querySelectorAll('.btn-offline').forEach(btn => {
+            const url = btn.dataset.url;
+            if (verificarCache(url)) {
+                btn.classList.add('carregado');
+                btn.innerText = "✅ Salvo";
+            } else {
+                btn.classList.remove('carregado');
+                btn.innerText = "⬇️ Carregar";
+            }
+        });
     }
 
     function formatarTempo(segundos) {
@@ -190,7 +290,7 @@
                 backBufferLength: 300,
                 maxBufferLength: 60,
                 maxMaxBufferLength: 1200,
-                maxBufferSize: 150 * 1000 * 1000, // 150MB de cache
+                maxBufferSize: 150 * 1000 * 1000,
                 xhrSetup: function(xhr) {
                     xhr.withCredentials = false;
                     xhr.setRequestHeader('Origin', window.location.origin);
@@ -213,7 +313,6 @@
             };
         }
 
-        // Salva progresso automaticamente
         video.ontimeupdate = () => {
             const atual = video.currentTime;
             const total = video.duration || 0;
@@ -222,7 +321,6 @@
             }
         };
 
-        // Quando acabar
         video.onended = () => {
             mostrarContagemProximo();
         };
@@ -269,14 +367,25 @@
             const epFormatado = String(numeroEp).padStart(2, '0');
             const url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temp.pasta}/${epFormatado}.mp4/index.m3u8`;
 
-            const btn = document.createElement('button');
-            btn.innerText = numeroEp;
-            btn.dataset.ep = numeroEp;
-            btn.onclick = function() {
+            const divEp = document.createElement('div');
+            divEp.className = 'ep-item';
+            divEp.innerHTML = `
+                <button class="btn-ep" data-ep="${numeroEp}">${numeroEp}</button>
+                <button class="btn-offline" data-url="${url}">⬇️ Carregar</button>
+            `;
+
+            divEp.querySelector('.btn-ep').onclick = () => {
                 tocarEpisodio(url, 0, serieAtual.nome, numeroEp, serieAtual.img);
             };
-            grid.appendChild(btn);
+
+            divEp.querySelector('.btn-offline').onclick = () => {
+                carregarParaOffline(url, numeroEp, serieAtual.nome, serieAtual.img);
+            };
+
+            grid.appendChild(divEp);
         }
+
+        atualizarBotoesCache();
 
         const controles = document.getElementById('controles-pagina');
         controles.style.display = totalEp > EPISODIOS_POR_PAGINA ? 'flex' : 'none';
@@ -290,10 +399,10 @@
     }
 
     function destacarEpisodioAtual(numeroAtual = null) {
-        document.querySelectorAll('.eps-grid button').forEach(b => b.classList.remove('btn-ativo'));
+        document.querySelectorAll('.btn-ep').forEach(b => b.classList.remove('btn-ativo'));
         if (!numeroAtual && episodioAtual) numeroAtual = episodioAtual.numero;
         if (numeroAtual) {
-            const botao = document.querySelector(`.eps-grid button[data-ep="${numeroAtual}"]`);
+            const botao = document.querySelector(`.btn-ep[data-ep="${numeroAtual}"]`);
             if (botao) botao.classList.add('btn-ativo');
         }
     }
@@ -337,7 +446,6 @@
         video.play();
     }
 
-    // === OUTRAS FUNÇÕES ===
     function voltar() {
         video.pause();
         document.getElementById('interface').style.display = 'block';
