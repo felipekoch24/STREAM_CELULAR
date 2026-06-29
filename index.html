@@ -6,185 +6,318 @@
     <title>STREAM FELIPE MOBILE</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        video::-webkit-media-controls { display: flex !important; }
-        button:active { background: #e50914 !important; transform: scale(0.95); }
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
-        video { width: 100%; height: 250px; background: #000; display: block; }
-        .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; }
-        .serie-card { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; cursor: pointer; }
-        .serie-card img { width: 60px; height: 80px; object-fit: cover; border-radius: 4px; margin-right: 15px; }
-        .eps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 15px; }
-        button { padding: 12px; background: #333; color: #fff; border: none; border-radius: 4px; }
-        #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 99; display: none; text-align: center; padding-top: 100px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
+        video { width: 100%; height: 220px; background: #000; display: block; }
+        .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; font-size: 18px; }
+        .serie-card { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #333; cursor: pointer; }
+        .serie-card img { width: 55px; height: 75px; object-fit: cover; border-radius: 4px; margin-right: 12px; }
+        .eps-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 15px; }
+        button { padding: 12px; background: #333; color: #fff; border: none; border-radius: 4px; font-size: 15px; }
+        button:active { background: #e50914 !important; transform: scale(0.96); }
         .btn-ativo { background: #e50914 !important; border: 2px solid #fff !important; font-weight: bold; }
+        #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 999; display: none; text-align: center; padding-top: 120px; }
+        #next-overlay h2 { font-size: 22px; margin-bottom: 30px; }
+        #next-overlay button { width: 85%; padding: 18px; margin: 8px 0; font-size: 17px; }
+        .paginas { display: flex; justify-content: space-between; padding: 15px; gap: 10px; }
+        .paginas button { flex: 1; }
+        #search-bar { width: 92%; padding: 14px; margin: 12px 4%; border-radius: 8px; border: none; background: #222; color: #fff; font-size: 16px; }
+        .item-continuar { display: flex; align-items: center; justify-content: space-between; padding: 12px; margin: 8px 4%; background: #1a1a1a; border-radius: 6px; cursor: pointer; }
+        .item-continuar img { width: 45px; height: 60px; border-radius: 4px; margin-right: 10px; }
+        .tempo-parado { color: #ffcc00; font-size: 13px; }
     </style>
 </head>
 <body>
-    <video id="video" playsinline controls></video>
+    <video id="video" playsinline></video>
 
     <div id="next-overlay">
-        <h2>Próximo em <span id="count">10</span>s</h2>
-        <button onclick="pularAgora()" style="width:80%; padding:20px; background:#e50914;">PULAR AGORA</button>
-        <button onclick="cancelarPulo()" style="width:80%; margin-top:10px; padding:15px;">CANCELAR</button>
+        <h2>Próximo episódio em <span id="count">10</span>s</h2>
+        <button onclick="pularAgora()">⏭ PULAR AGORA</button>
+        <button onclick="cancelarPulo()">❌ CANCELAR</button>
     </div>
 
     <div id="interface">
-        <button onclick="iniciarNostalgia()" style="width:100%; padding:20px; background:#e50914; color:white; border:none; font-weight:bold; margin-bottom:10px;">📺 SESSÃO NOSTALGIA</button>
-        <input type="text" id="search-bar" placeholder="🔍 PESQUISAR SÉRIE..." onkeyup="filtrarSeries()" style="width:90%; padding:15px; margin: 10px 5%; border-radius: 8px; border:none; background:#333; color:white;">
+        <button onclick="iniciarNostalgia()" style="width:92%; margin:12px 4%; padding:18px; background:#e50914; color:white; border:none; font-weight:bold; border-radius:6px;">📺 SESSÃO NOSTALGIA</button>
         
-        <div id="div-continuar" style="display:none;" class="section-title"></div>
+        <input type="text" id="search-bar" placeholder="🔍 PESQUISAR SÉRIE..." oninput="filtrarSeries()">
         
-        <div class="section-title">BIBLIOTECA</div>
+        <div id="div-continuar">
+            <div class="section-title">▶ CONTINUAR ASSISTINDO</div>
+            <div id="lista-continuar"></div>
+        </div>
+        
+        <div class="section-title">📚 BIBLIOTECA</div>
         <div id="lista-series"></div>
     </div>
 
     <div id="eps-view" style="display:none;">
-        <button style="width:100%; padding:15px; background:#222; border:none; color:white;" onclick="voltar()">⬅️ VOLTAR</button>
+        <button style="width:92%; margin:12px 4%; padding:15px; background:#222; border:none; color:white; border-radius:6px;" onclick="voltar()">⬅️ VOLTAR</button>
+        <div id="info-serie" style="padding:10px 15px; font-size:16px; color:#ffcc00; font-weight:bold;"></div>
         <div id="btns-eps" class="eps-grid"></div>
+        <div class="paginas" id="controles-pagina" style="display:none;">
+            <button id="pagina-anterior">⬅ Anterior</button>
+            <span id="info-pagina" style="align-self:center;">Página 1</span>
+            <button id="pagina-proxima">Próxima ➡</button>
+        </div>
     </div>
 
 <script>
     const video = document.getElementById('video');
     const listaSeries = document.getElementById('lista-series');
-    const listaComerciais = ["vinheta1.mp4", "intervalo1.mp4", "intervalo2.mp4", "propaganda1.mp4", "propaganda2.mp4", "propaganda3.mp4"];
-    
-    let hls = null, timer = null, lastBtn = null, modoAleatorio = false, tocandoComercial = false, currentSerieImg = "";
+    const listaContinuar = document.getElementById('lista-continuar');
+    const overlay = document.getElementById('next-overlay');
+    const contadorEl = document.getElementById('count');
 
-    video.onended = () => {
-        if (!modoAleatorio) {
-            document.getElementById('next-overlay').style.display = 'block';
-            let c = 10;
-            document.getElementById('count').innerText = c;
-            timer = setInterval(() => {
-                c--; 
-                document.getElementById('count').innerText = c;
-                if(c <= 0) pularAgora();
-            }, 1000);
-        }
-    };
+    let hls = null, timer = null, episodioAtual = null, serieAtual = null, temporadaAtual = null, paginaAtual = 1;
+    const EPISODIOS_POR_PAGINA = 10;
 
-    document.addEventListener("DOMContentLoaded", function() {
+    // === CARREGAR DADOS ===
+    document.addEventListener("DOMContentLoaded", () => {
         carregarHistorico();
+        fetch('series.json')
+            .then(res => res.json())
+            .then(series => {
+                series.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'serie-card';
+                    div.innerHTML = `<img src="${s.img}" alt="${s.nome}"><span>${s.nome}</span>`;
+                    div.onclick = () => { serieAtual = s; verTemporadas(s); };
+                    listaSeries.appendChild(div);
+                });
+            })
+            .catch(err => console.error("Erro ao carregar series.json:", err));
     });
 
-    fetch('series.json').then(res => res.json()).then(series => {
-        series.forEach(s => {
-            let div = document.createElement('div');
-            div.className = 'serie-card';
-            div.innerHTML = `<img src="${s.img}"> <span>${s.nome}</span>`;
-            div.onclick = () => { currentSerieImg = s.img; verEps(s); };
-            listaSeries.appendChild(div);
-        });
-    });
-
-    function playVideo(url, time = 0, btn = null) {
-        if (btn) lastBtn = btn; 
-        let historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
-        historico[url] = { time: video.currentTime, img: currentSerieImg, timestamp: Date.now() };
+    // === SALVAR E CARREGAR HISTÓRICO ===
+    function salvarProgresso(url, tempo, nomeSerie, numeroEp, img) {
+        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
+        historico[url] = {
+            tempo: Math.round(tempo),
+            duracao: Math.round(video.duration || 0),
+            nomeSerie,
+            numeroEp,
+            img,
+            ultimaVisualizacao: Date.now()
+        };
         localStorage.setItem('meu_historico', JSON.stringify(historico));
+        carregarHistorico();
+    }
+
+    function carregarHistorico() {
+        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
+        listaContinuar.innerHTML = "";
+        const itens = Object.entries(historico)
+            .map(([url, dados]) => ({ url, ...dados }))
+            .filter(item => item.tempo > 10 && item.duracao > 0 && (item.tempo / item.duracao) < 0.95)
+            .sort((a, b) => b.ultimaVisualizacao - a.ultimaVisualizacao);
+
+        if (itens.length === 0) {
+            listaContinuar.innerHTML = `<p style="padding:15px; color:#aaa;">Nenhuma continuação por enquanto</p>`;
+            return;
+        }
+
+        itens.forEach(item => {
+            const porcentagem = Math.round((item.tempo / item.duracao) * 100);
+            const minutos = Math.floor(item.tempo / 60);
+            const segundos = String(Math.floor(item.tempo % 60)).padStart(2, '0');
+            const div = document.createElement('div');
+            div.className = 'item-continuar';
+            div.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <img src="${item.img}" alt="${item.nomeSerie}">
+                    <div>
+                        <div>${item.nomeSerie}</div>
+                        <div>Ep ${item.numeroEp}</div>
+                        <div class="tempo-parado">Retomando em ${minutos}:${segundos} (${porcentagem}%)</div>
+                    </div>
+                </div>
+            `;
+            div.onclick = () => tocarEpisodio(item.url, item.tempo, item.nomeSerie, item.numeroEp, item.img);
+            listaContinuar.appendChild(div);
+        });
+    }
+
+    // === REPRODUÇÃO DE VÍDEO ===
+    function tocarEpisodio(url, tempoInicio = 0, nomeSerie = "", numeroEp = 0, img = "") {
+        if (!url) return;
+        episodioAtual = { url, tempo: tempoInicio, nome: nomeSerie, numero: numeroEp, img };
 
         if (hls) { hls.destroy(); hls = null; }
+
         if (url.includes('.m3u8')) {
             hls = new Hls();
             hls.loadSource(url);
             hls.attachMedia(video);
-        } else { video.src = url; }
-        
-        video.currentTime = time;
-        video.play();
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                if (tempoInicio > 0) video.currentTime = tempoInicio;
+                video.play().catch(e => console.log("Autoplay bloqueado:", e));
+            });
+        } else {
+            video.src = url;
+            video.load();
+            video.onloadedmetadata = () => {
+                if (tempoInicio > 0) video.currentTime = tempoInicio;
+                video.play().catch(e => console.log("Erro ao reproduzir:", e));
+            };
+        }
+
+        // Salva progresso a cada 5 segundos
+        clearInterval(timer);
+        timer = setInterval(() => {
+            if (!video.paused && video.duration > 10) {
+                salvarProgresso(url, video.currentTime, nomeSerie, numeroEp, img);
+            }
+        }, 5000);
+
+        // Quando o vídeo acabar
+        video.onended = () => {
+            clearInterval(timer);
+            mostrarContagemProximo();
+        };
+
+        destacarEpisodioAtual(numeroEp);
         window.scrollTo(0, 0);
     }
 
-    function carregarHistorico() {
-        let historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
-        let div = document.getElementById('div-continuar');
-        let lista = Object.keys(historico).map(url => ({ url, ...historico[url] }))
-                          .sort((a, b) => b.timestamp - a.timestamp);
+    // === NAVEGAÇÃO ===
+    function verTemporadas(serie) {
+        document.getElementById('interface').style.display = 'none';
+        document.getElementById('eps-view').style.display = 'block';
+        document.getElementById('info-serie').innerText = serie.nome;
+        const grid = document.getElementById('btns-eps');
+        grid.innerHTML = "";
+        document.getElementById('controles-pagina').style.display = 'none';
 
-        if (lista.length > 0) {
-            div.style.display = 'block';
-            div.innerHTML = '<div class="section-title">CONTINUAR ASSISTINDO</div>';
-            lista.slice(0, 5).forEach(item => {
-                div.innerHTML += `
-                    <button onclick="playVideo('${item.url}', ${item.time})" style="width:100%; display:flex; align-items:center; background:#1a1a1a; margin-bottom:5px;">
-                        <img src="${item.img}" style="width:50px; height:70px; margin-right:10px;">
-                        <span>RETOMAR EPISÓDIO</span>
-                    </button>`;
+        if (serie.temporadas && serie.temporadas.length > 0) {
+            serie.temporadas.forEach(temp => {
+                const btn = document.createElement('button');
+                btn.innerText = `Temporada ${temp.n}`;
+                btn.style.background = "#e50914";
+                btn.onclick = () => { temporadaAtual = temp; carregarEpisodios(temp); };
+                grid.appendChild(btn);
             });
+        } else {
+            temporadaAtual = serie;
+            carregarEpisodios(serie);
         }
     }
 
-    function filtrarSeries() {
-        let input = document.getElementById('search-bar').value.toLowerCase();
-        document.querySelectorAll('.serie-card').forEach(card => {
-            card.style.display = card.querySelector('span').innerText.toLowerCase().includes(input) ? 'flex' : 'none';
-        });
+    function carregarEpisodios(temp, pagina = 1) {
+        paginaAtual = pagina;
+        const inicio = temp.start || 1;
+        const totalEp = temp.total;
+        const indiceInicio = (pagina - 1) * EPISODIOS_POR_PAGINA;
+        const fim = Math.min(indiceInicio + EPISODIOS_POR_PAGINA, totalEp);
+
+        const grid = document.getElementById('btns-eps');
+        grid.innerHTML = "";
+
+        for (let i = indiceInicio; i < fim; i++) {
+            const numeroEp = inicio + i;
+            const epFormatado = String(numeroEp).padStart(2, '0');
+            const url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temp.pasta}/${epFormatado}.mp4/index.m3u8`;
+
+            const btn = document.createElement('button');
+            btn.innerText = numeroEp;
+            btn.dataset.ep = numeroEp;
+            btn.onclick = function() {
+                const nomeSerie = serieAtual.nome;
+                const img = serieAtual.img;
+                tocarEpisodio(url, 0, nomeSerie, numeroEp, img);
+            };
+            grid.appendChild(btn);
+        }
+
+        // Controles de página
+        const controles = document.getElementById('controles-pagina');
+        controles.style.display = totalEp > EPISODIOS_POR_PAGINA ? 'flex' : 'none';
+        document.getElementById('info-pagina').innerText = `Página ${pagina} de ${Math.ceil(totalEp / EPISODIOS_POR_PAGINA)}`;
+        document.getElementById('pagina-anterior').disabled = pagina === 1;
+        document.getElementById('pagina-anterior').onclick = () => carregarEpisodios(temp, pagina - 1);
+        document.getElementById('pagina-proxima').disabled = fim >= totalEp;
+        document.getElementById('pagina-proxima').onclick = () => carregarEpisodios(temp, pagina + 1);
+
+        destacarEpisodioAtual();
     }
 
-    function iniciarNostalgia() {
-        modoAleatorio = true;
-        tocandoComercial = false;
-        fetch('series.json').then(res => res.json()).then(series => {
-            let s = series[Math.floor(Math.random() * series.length)];
-            let alvo = s.temporadas ? s.temporadas[Math.floor(Math.random() * s.temporadas.length)] : s;
-            let ep = Math.floor(Math.random() * alvo.total) + (alvo.start || 1);
-            let n = (ep < 10 && !alvo.start) ? "0" + ep : ep;
-            currentSerieImg = s.img;
-            playVideo(`https://cdn-s01.mywallpaper-4k-image.net/stream/${alvo.pasta}/${n}.mp4/index.m3u8`);
-        });
+    function destacarEpisodioAtual(numeroAtual = null) {
+        document.querySelectorAll('.eps-grid button').forEach(b => b.classList.remove('btn-ativo'));
+        if (!numeroAtual && episodioAtual) numeroAtual = episodioAtual.numero;
+        if (numeroAtual) {
+            const botao = document.querySelector(`.eps-grid button[data-ep="${numeroAtual}"]`);
+            if (botao) botao.classList.add('btn-ativo');
+        }
+    }
+
+    // === PRÓXIMO EPISÓDIO ===
+    function mostrarContagemProximo() {
+        overlay.style.display = 'block';
+        let contagem = 10;
+        contadorEl.innerText = contagem;
+
+        const contador = setInterval(() => {
+            contagem--;
+            contadorEl.innerText = contagem;
+            if (contagem <= 0) {
+                clearInterval(contador);
+                pularAgora();
+            }
+        }, 1000);
+
+        overlay.onclick = () => { };
     }
 
     function pularAgora() {
         clearInterval(timer);
-        document.getElementById('next-overlay').style.display = 'none';
-        if(lastBtn && lastBtn.nextElementSibling) lastBtn.nextElementSibling.click();
+        overlay.style.display = 'none';
+        if (!episodioAtual || !temporadaAtual) return;
+
+        const proximoNumero = episodioAtual.numero + 1;
+        const inicio = temporadaAtual.start || 1;
+        const total = temporadaAtual.total;
+
+        if (proximoNumero > inicio + total - 1) {
+            alert("Último episódio da temporada!");
+            return;
+        }
+
+        const epFormatado = String(proximoNumero).padStart(2, '0');
+        const novaUrl = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temporadaAtual.pasta}/${epFormatado}.mp4/index.m3u8`;
+        tocarEpisodio(novaUrl, 0, serieAtual.nome, proximoNumero, serieAtual.img);
     }
 
     function cancelarPulo() {
         clearInterval(timer);
-        document.getElementById('next-overlay').style.display = 'none';
+        overlay.style.display = 'none';
+        video.play();
     }
 
+    // === OUTRAS FUNÇÕES ===
     function voltar() {
         document.getElementById('interface').style.display = 'block';
         document.getElementById('eps-view').style.display = 'none';
+        carregarHistorico();
     }
 
-    function verEps(s) {
-        document.getElementById('interface').style.display = 'none';
-        document.getElementById('eps-view').style.display = 'block';
-        const grid = document.getElementById('btns-eps');
-        grid.innerHTML = "";
-        if (s.temporadas) {
-            s.temporadas.forEach(temp => {
-                let btn = document.createElement('button');
-                btn.innerText = "TEMP " + temp.n;
-                btn.style.background = "#e50914";
-                btn.onclick = () => carregarEpisodiosDaTemp(temp);
-                grid.appendChild(btn);
+    function filtrarSeries() {
+        const termo = document.getElementById('search-bar').value.toLowerCase();
+        document.querySelectorAll('.serie-card').forEach(card => {
+            const nome = card.querySelector('span').innerText.toLowerCase();
+            card.style.display = nome.includes(termo) ? 'flex' : 'none';
+        });
+    }
+
+    function iniciarNostalgia() {
+        fetch('series.json')
+            .then(res => res.json())
+            .then(series => {
+                const s = series[Math.floor(Math.random() * series.length)];
+                const temp = s.temporadas ? s.temporadas[Math.floor(Math.random() * s.temporadas.length)] : s;
+                const ep = Math.floor(Math.random() * temp.total) + (temp.start || 1);
+                const epFormatado = String(ep).padStart(2, '0');
+                const url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temp.pasta}/${epFormatado}.mp4/index.m3u8`;
+                tocarEpisodio(url, 0, s.nome, ep, s.img);
             });
-        } else {
-            carregarEpisodiosDaTemp(s);
-        }
-    }
-
-    function carregarEpisodiosDaTemp(item) {
-        const grid = document.getElementById('btns-eps');
-        grid.innerHTML = "";
-        const inicio = item.start || 1;
-        for (let i = inicio; i <= item.total; i++) {
-            let n = (i < 10 && !item.start) ? "0" + i : i;
-            let url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${item.pasta}/${n}.mp4/index.m3u8`;
-            let btn = document.createElement('button');
-            btn.innerText = i;
-            btn.onclick = function() { 
-                modoAleatorio = false; 
-                playVideo(url, 0, this); 
-                document.querySelectorAll('.eps-grid button').forEach(b => b.classList.remove('btn-ativo'));
-                this.classList.add('btn-ativo');
-            };
-            grid.appendChild(btn);
-        }
     }
 </script>
 </body>
