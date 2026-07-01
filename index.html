@@ -3,463 +3,445 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>STREAM FELIPE MOBILE</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <title>TV STREAM</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow-x: hidden; }
-        
-        /* 🎥 Tela e vídeo */
-        .video-container { 
-            position: relative; 
-            width: 100vw; 
-            height: 56.25vw; /* Proporção 16:9 */
-            max-height: 100vh;
-            background: #000;
-        }
-        video { 
-            width: 100%; 
-            height: 100%; 
-            display: block;
-            object-fit: contain;
-            background: #000;
+        body { 
+            color: white; 
+            font-family: 'Segoe UI, Roboto, Arial', sans-serif; 
+            min-height: 100vh; 
+            margin: 0; 
+            overflow-x: hidden;
+            background: linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.88)), url('https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund01.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background 0.5s ease;
         }
 
-        /* 📱 Interface */
-        .section-title { padding: 15px; font-weight: bold; background: #1a1a1a; border-bottom: 2px solid #e50914; font-size: 18px; }
-        .serie-card { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #333; cursor: pointer; }
-        .serie-card img { width: 55px; height: 75px; object-fit: cover; border-radius: 4px; margin-right: 12px; }
-        
-        /* 🎯 Grade de episódios com espaço para botão */
-        .eps-grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 10px; 
-            padding: 15px; 
+        /* Tela de perfis */
+        #tela-perfis {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 20px; text-align: center;
         }
-        .ep-item {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        #tela-perfis h1 { font-size: 36px; margin-bottom: 40px; color: #fff; font-weight: 600; }
+        .lista-perfis {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 30px; width: 100%; max-width: 600px; margin-bottom: 40px;
         }
-        .btn-ep { 
-            padding: 12px; 
-            background: #333; 
-            color: #fff; 
-            border: none; 
-            border-radius: 4px; 
-            font-size: 15px; 
+        .perfil-item {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            cursor: pointer; transition: transform 0.2s; position: relative;
         }
-        .btn-ativo { background: #e50914 !important; border: 2px solid #fff !important; font-weight: bold; }
-        .btn-offline {
-            padding: 6px;
-            font-size: 12px;
-            background: #222;
-            border: none;
-            border-radius: 3px;
-            color: #ccc;
-            cursor: pointer;
+        .perfil-item img {
+            width: 120px; height: 120px; border-radius: 50%; border: 3px solid transparent;
+            object-fit: cover; background: rgba(255,255,255,0.08); transition: all 0.3s;
         }
-        .btn-offline.carregado {
-            background: #2e7d32;
-            color: #fff;
+        .perfil-item:hover { transform: scale(1.05); }
+        .perfil-item:hover img { border-color: #f47521; box-shadow: 0 0 15px rgba(244,117,33,0.4); }
+        .perfil-item p { font-size: 18px; color: #ddd; }
+        .btn-editar {
+            position: absolute; top: -8px; right: -8px; width: 28px; height: 28px;
+            border-radius: 50%; background: #f47521; color: white; border: none;
+            font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .perfil-item:hover .btn-editar { opacity: 1; }
+        .perfil-vazio {
+            border: 2px dashed rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
+            font-size: 40px; color: rgba(255,255,255,0.4); border-radius: 50%; width: 120px; height: 120px;
         }
 
-        #next-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 999; display: none; text-align: center; padding-top: 120px; }
-        #next-overlay h2 { font-size: 22px; margin-bottom: 30px; }
-        #next-overlay button { width: 85%; padding: 18px; margin: 8px 0; font-size: 17px; }
-        .paginas { display: flex; justify-content: space-between; padding: 15px; gap: 10px; }
-        .paginas button { flex: 1; }
-        #search-bar { width: 92%; padding: 14px; margin: 12px 4%; border-radius: 8px; border: none; background: #222; color: #fff; font-size: 16px; }
-        .item-continuar { display: flex; align-items: center; justify-content: space-between; padding: 12px; margin: 8px 4%; background: #1a1a1a; border-radius: 6px; cursor: pointer; }
-        .item-continuar img { width: 45px; height: 60px; border-radius: 4px; margin-right: 10px; }
-        .tempo-parado { color: #ffcc00; font-size: 13px; }
+        /* Telas de formulário */
+        #tela-formulario, #tela-escolha-avatar, #tela-escolha-fundo {
+            display: none; width: 100%; min-height: 100vh; padding: 40px 20px;
+        }
+        .voltar {
+            background: transparent; border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 18px; font-size: 15px; margin-bottom: 30px;
+            color: white; border-radius: 6px; cursor: pointer;
+        }
+        .voltar:hover { background: rgba(255,255,255,0.1); }
+        h2 { font-size: 28px; margin-bottom: 25px; color: #fff; }
+        input {
+            padding: 16px; font-size: 18px; border-radius: 8px; border: none;
+            width: 90%; max-width: 350px; text-align: center;
+            background: rgba(255,255,255,0.12); color: white; margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.25); outline: none;
+        }
+        input:focus { border-color: #f47521; box-shadow: 0 0 0 2px rgba(244,117,33,0.3); }
+        button {
+            padding: 14px 45px; background-color: #f47521; color: white; border: none;
+            cursor: pointer; font-size: 19px; border-radius: 8px; font-weight: bold;
+            transition: all 0.25s;
+        }
+        button:hover { background-color: #e06518; transform: translateY(-2px); }
+
+        .categoria { margin-bottom: 40px; }
+        .categoria h3 { font-size: 22px; margin-bottom: 20px; color: #f47521; }
+        .grid-avatares, .grid-fundos {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 20px; max-width: 850px;
+        }
+        .avatar-opcao {
+            width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+            border: 3px solid transparent; cursor: pointer; transition: all 0.2s;
+        }
+        .fundo-opcao {
+            width: 120px; height: 80px; border-radius: 8px; object-fit: cover;
+            border: 3px solid transparent; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .avatar-opcao:hover, .avatar-opcao.selecionado,
+        .fundo-opcao:hover, .fundo-opcao.selecionado {
+            border-color: #f47521; box-shadow: 0 0 15px rgba(244,117,33,0.4);
+        }
+
+        /* Tela de carregamento */
+        #tela-carregando {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75));
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.4s;
+        }
+        #avatar-carregando {
+            width: 130px; height: 130px; border-radius: 50%; object-fit: cover;
+            border: 3px solid #f47521; margin-bottom: 25px;
+        }
+        #mensagem-carregando {
+            font-size: 30px; margin-bottom: 35px; text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        }
+        .bolinhas { display: flex; gap: 16px; }
+        .bolinha {
+            width: 20px; height: 20px; border-radius: 50%; background: #f47521;
+            animation: pular 1.2s infinite;
+        }
+        .bolinha:nth-child(2) { animation-delay: 0.2s; }
+        .bolinha:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pular {
+            0%,100% { transform: translateY(0); opacity: 0.5; }
+            50% { transform: translateY(-20px); opacity: 1; }
+        }
+
+        /* Tela inicial */
+        #tela-home {
+            display: none; width: 100%; min-height: 100vh; padding: 30px;
+            background: rgba(0,0,0,0.75);
+        }
+        .cabecalho {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 25px 0; border-bottom: 1px solid rgba(255,255,255,0.15);
+            margin-bottom: 40px; flex-wrap: wrap; gap: 20px;
+        }
+        .info-usuario { display: flex; align-items: center; gap: 18px; }
+        .info-usuario img {
+            width: 60px; height: 60px; border-radius: 50%; object-fit: cover;
+            border: 2px solid #f47521;
+        }
+        .info-usuario h2 { font-size: 26px; margin: 0; }
+
+        /* Seção de conteúdo com capas */
+        .secao-conteudo { margin: 50px 0; }
+        .secao-conteudo h3 { font-size: 24px; margin-bottom: 20px; color: #f47521; }
+        .grade-capas {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 25px; max-width: 1000px; margin: 0 auto;
+        }
+        .capa-item {
+            cursor: pointer; transition: transform 0.3s ease; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .capa-item:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(244,117,33,0.5); }
+        .capa-item img { width: 100%; height: 240px; object-fit: cover; display: block; }
+        .capa-item p { padding: 12px; text-align: center; background: rgba(0,0,0,0.8); font-size: 16px; }
+
+        /* Player nativo */
+        .player-container { display: none; margin-top: 30px; text-align: center; }
+        video {
+            width: 100%; max-width: 900px; border-radius: 10px;
+            background: #000; margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
-    <div class="video-container">
-        <video id="video" playsinline controls controlsList="nodownload"></video>
+
+    <!-- 📋 Tela de perfis -->
+    <div id="tela-perfis">
+        <h1>QUEM ESTÁ ASSISTINDO?</h1>
+        <div class="lista-perfis" id="listaPerfis"></div>
     </div>
 
-    <div id="next-overlay">
-        <h2>Próximo episódio em <span id="count">10</span>s</h2>
-        <button onclick="pularAgora()">⏭ PULAR AGORA</button>
-        <button onclick="cancelarPulo()">❌ CANCELAR</button>
+    <!-- 📝 Nome do perfil -->
+    <div id="tela-formulario">
+        <button class="voltar" onclick="voltarParaPerfis()">← Voltar</button>
+        <h2 id="tituloForm">Novo Perfil</h2>
+        <input type="text" id="nomePerfil" placeholder="Digite o nome">
+        <br>
+        <button onclick="avancarParaAvatar()">Continuar</button>
     </div>
 
-    <div id="interface">
-        <input type="text" id="search-bar" placeholder="🔍 PESQUISAR SÉRIE..." oninput="filtrarSeries()">
-        
-        <div id="div-continuar">
-            <div class="section-title">▶ CONTINUAR ASSISTINDO</div>
-            <div id="lista-continuar"></div>
+    <!-- 🎭 Escolher avatar -->
+    <div id="tela-escolha-avatar">
+        <button class="voltar" onclick="voltarParaFormulario()">← Voltar</button>
+        <h2>Escolha sua imagem</h2>
+        <div class="categoria">
+            <h3>Masculino</h3>
+            <div class="grid-avatares">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc01.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc02.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc03.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc04.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc05.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc06.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc07.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc08.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc09.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc10.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc11.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc12.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/masc13.jpg" onclick="selecionarAvatar(this.src)">
+            </div>
         </div>
-        
-        <div class="section-title">📚 BIBLIOTECA (A-Z)</div>
-        <div id="lista-series"></div>
-    </div>
-
-    <div id="eps-view" style="display:none;">
-        <button style="width:92%; margin:12px 4%; padding:15px; background:#222; border:none; color:white; border-radius:6px;" onclick="voltar()">⬅️ VOLTAR</button>
-        <div id="info-serie" style="padding:10px 15px; font-size:16px; color:#ffcc00; font-weight:bold;"></div>
-        <div id="btns-eps" class="eps-grid"></div>
-        <div class="paginas" id="controles-pagina" style="display:none;">
-            <button id="pagina-anterior">⬅ Anterior</button>
-            <span id="info-pagina" style="align-self:center;">Página 1</span>
-            <button id="pagina-proxima">Próxima ➡</button>
+        <div class="categoria">
+            <h3>Feminino</h3>
+            <div class="grid-avatares">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin01.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin02.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin03.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin04.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin05.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin06.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin07.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin08.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin09.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin10.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin11.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin12.jpg" onclick="selecionarAvatar(this.src)">
+                <img class="avatar-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/femin13.jpg" onclick="selecionarAvatar(this.src)">
+            </div>
         </div>
     </div>
 
-<script>
-    const video = document.getElementById('video');
-    const listaSeries = document.getElementById('lista-series');
-    const listaContinuar = document.getElementById('lista-continuar');
-    const overlay = document.getElementById('next-overlay');
-    const contadorEl = document.getElementById('count');
+    <!-- 🖼️ Escolher fundo -->
+    <div id="tela-escolha-fundo">
+        <button class="voltar" onclick="voltarParaAvatar()">← Voltar</button>
+        <h2>Escolha o fundo da tela</h2>
+        <div class="categoria">
+            <h3>Opções de fundo</h3>
+            <div class="grid-fundos">
+                <img class="fundo-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund01.jpg" onclick="selecionarFundo(this.src)">
+                <img class="fundo-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund02.jpg" onclick="selecionarFundo(this.src)">
+                <img class="fundo-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund03.jpg" onclick="selecionarFundo(this.src)">
+                <img class="fundo-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund04.jpg" onclick="selecionarFundo(this.src)">
+                <img class="fundo-opcao" src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund05.jpg" onclick="selecionarFundo(this.src)">
+            </div>
+        </div>
+    </div>
 
-    let hls = null, timer = null, episodioAtual = null, serieAtual = null, temporadaAtual = null, paginaAtual = 1;
-    const EPISODIOS_POR_PAGINA = 12;
-    const MAX_CACHE = 20; // Limite máximo de episódios salvos
-    const CHAVE_CACHE = 'episodios_offline';
+    <!-- 🌀 Carregamento -->
+    <div id="tela-carregando">
+        <img id="avatar-carregando" src="" alt="">
+        <h2 id="mensagem-carregando"></h2>
+        <div class="bolinhas">
+            <div class="bolinha"></div>
+            <div class="bolinha"></div>
+            <div class="bolinha"></div>
+        </div>
+    </div>
 
-    // === CARREGAR E ORDENAR SÉRIES ===
-    document.addEventListener("DOMContentLoaded", () => {
-        carregarHistorico();
-        fetch('series.json')
-            .then(res => res.json())
-            .then(series => {
-                series.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
-                series.forEach(s => {
-                    const div = document.createElement('div');
-                    div.className = 'serie-card';
-                    div.innerHTML = `<img src="${s.img}" alt="${s.nome}"><span>${s.nome}</span>`;
-                    div.onclick = () => { serieAtual = s; verTemporadas(s); };
-                    listaSeries.appendChild(div);
-                });
-            })
-            .catch(err => console.error("Erro ao carregar series.json:", err));
-    });
+    <!-- 🏠 Tela inicial com capas -->
+    <div id="tela-home">
+        <div class="cabecalho">
+            <div class="info-usuario">
+                <img id="avatar-usuario" src="" alt="">
+                <h2>BEM-VINDO(A), <span id="nome-usuario"></span>!</h2>
+            </div>
+            <button onclick="voltarParaPerfis()" style="background: #333; padding: 9px 18px;">Trocar Perfil</button>
+        </div>
 
-    // === GERENCIAR HISTÓRICO E CACHE ===
-    function salvarProgresso(url, tempo, nomeSerie, numeroEp, img) {
-        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
-        historico[url] = {
-            tempo: Math.round(tempo),
-            duracao: Math.round(video.duration || 0),
-            nomeSerie,
-            numeroEp,
-            img,
-            ultimaVisualizacao: Date.now()
-        };
-        localStorage.setItem('meu_historico', JSON.stringify(historico));
-        carregarHistorico();
-        limparCacheAntigo();
-    }
-
-    function carregarHistorico() {
-        const historico = JSON.parse(localStorage.getItem('meu_historico')) || {};
-        listaContinuar.innerHTML = "";
-        const itens = Object.entries(historico)
-            .map(([url, dados]) => ({ url, ...dados }))
-            .filter(item => item.tempo > 10 && item.duracao > 0 && (item.tempo / item.duracao) < 0.95)
-            .sort((a, b) => b.ultimaVisualizacao - a.ultimaVisualizacao);
-
-        if (itens.length === 0) {
-            listaContinuar.innerHTML = `<p style="padding:15px; color:#aaa;">Nenhuma continuação por enquanto</p>`;
-            return;
-        }
-
-        itens.forEach(item => {
-            const minutos = Math.floor(item.tempo / 60);
-            const segundos = String(Math.floor(item.tempo % 60)).padStart(2, '0');
-            const div = document.createElement('div');
-            div.className = 'item-continuar';
-            div.innerHTML = `
-                <div style="display:flex; align-items:center;">
-                    <img src="${item.img}" alt="${item.nomeSerie}">
-                    <div>
-                        <div>${item.nomeSerie}</div>
-                        <div>Ep ${item.numeroEp}</div>
-                        <div class="tempo-parado">Retomando em ${minutos}:${segundos}</div>
-                    </div>
+        <!-- 🎬 CONTEÚDO COM SEUS VÍDEOS -->
+        <div class="secao-conteudo">
+            <h3>📺 DISPONÍVEL AGORA</h3>
+            <div class="grade-capas">
+                <div class="capa-item" onclick="abrirVideo('herois')">
+                    <img src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/capas/heroidescutot2.jpeg" alt="Herói Desconto">
+                    <p>Herói Desconto</p>
                 </div>
-            `;
-            div.onclick = () => tocarEpisodio(item.url, item.tempo, item.nomeSerie, item.numeroEp, item.img);
-            listaContinuar.appendChild(div);
-        });
-    }
+                <div class="capa-item" onclick="abrirVideo('jujutsu')">
+                    <img src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/capas/jujutsu-t3.webp" alt="Jujutsu Temporada 3">
+                    <p>Jujutsu Kaisen T3 Ep3</p>
+                </div>
+                <div class="capa-item" onclick="abrirVideo('street19')">
+                    <img src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/capas/streetfighterv.jpeg" alt="Street Fighter V Ep19">
+                    <p>Street Fighter V Ep19</p>
+                </div>
+                <div class="capa-item" onclick="abrirVideo('street20')">
+                    <img src="https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/capas/streetfighterv.jpeg" alt="Street Fighter V Ep20">
+                    <p>Street Fighter V Ep20</p>
+                </div>
+            </div>
+        </div>
 
-    function limparCacheAntigo() {
-        const cacheSalvo = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
-        if (cacheSalvo.length > MAX_CACHE) {
-            const removidos = cacheSalvo.slice(0, cacheSalvo.length - MAX_CACHE);
-            const novos = cacheSalvo.slice(-MAX_CACHE);
-            localStorage.setItem(CHAVE_CACHE, JSON.stringify(novos));
-            console.log(`${removidos.length} episódios antigos removidos do cache`);
+        <div class="player-container" id="area-player">
+            <video id="video-player" controls autoplay playsinline preload="auto">
+                Seu aparelho não suporta reprodução.
+            </video>
+            <br>
+            <button onclick="fecharPlayer()" style="background:#333;">Voltar</button>
+        </div>
+    </div>
+
+    <script>
+        let perfis = JSON.parse(localStorage.getItem('perfis')) || [];
+        let indiceEdicao = null;
+        let nomeTemp = "", avatarTemp = "", fundoTemp = "";
+
+        // 👇 SEUS LINKS JÁ CONFIGURADOS 👇
+        const LINKS_VIDEOS = {
+            herois: "COLOQUE_AQUI_O_LINK_DO_HEROI_DESCONTO", // Aguardando seu link
+            jujutsu: "https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/jujutsu-t3/Assistir%20Jujutsu%20Kaisen%203%20T3%20Ep3.m3u8",
+            street19: "https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/streetfighterve19/%5BAnimeFire.io%5D%20Street%20Fighter%20II%20V%20(Dublado)%20-%20Epis%C3%B3dio%2019%20(SD).m3u8",
+            street20: "https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/streetfighterve20/%5BAnimeFire.io%5D%20Street%20Fighter%20II%20V%20(Dublado)%20-%20Epis%C3%B3dio%2020%20(SD).m3u8"
+        };
+
+        function salvarPerfis() {
+            localStorage.setItem('perfis', JSON.stringify(perfis));
+            carregarListaPerfis();
         }
-    }
 
-    function verificarCache(url) {
-        const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
-        return cache.includes(url);
-    }
-
-    function marcarComoCarregado(url) {
-        const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE)) || [];
-        if (!cache.includes(url)) {
-            cache.push(url);
-            localStorage.setItem(CHAVE_CACHE, JSON.stringify(cache));
-            limparCacheAntigo();
-        }
-    }
-
-    // === CARREGAR EPISÓDIO PARA OFFLINE ===
-    function carregarParaOffline(url, numeroEp, nomeSerie, img) {
-        if (verificarCache(url)) {
-            alert("✅ Já está salvo para ver offline!");
-            return;
-        }
-
-        if (!confirm("Deseja carregar todo o episódio para ver sem internet? Isso pode usar mais dados.")) return;
-
-        const tempHls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-            maxBufferLength: 9999,
-            maxMaxBufferLength: 9999,
-            maxBufferSize: 500 * 1024 * 1024, // 500MB de espaço para carregar tudo
-            xhrSetup: xhr => {
-                xhr.withCredentials = false;
-                xhr.setRequestHeader('Origin', window.location.origin);
+        function carregarListaPerfis() {
+            const container = document.getElementById('listaPerfis');
+            container.innerHTML = "";
+            perfis.forEach((perfil, i) => {
+                const div = document.createElement('div');
+                div.className = 'perfil-item';
+                div.onclick = () => entrarPerfil(i);
+                div.innerHTML = `
+                    <button class="btn-editar" onclick="editarPerfil(${i}, event)">✎</button>
+                    <img src="${perfil.avatar}" alt="">
+                    <p>${perfil.nome}</p>
+                `;
+                container.appendChild(div);
+            });
+            if (perfis.length < 4) {
+                const divNovo = document.createElement('div');
+                divNovo.className = 'perfil-item perfil-vazio';
+                divNovo.onclick = () => abrirFormulario();
+                divNovo.innerHTML = `<span>+</span>`;
+                container.appendChild(divNovo);
             }
-        });
+        }
 
-        tempHls.loadSource(url);
-        tempHls.attachMedia(video);
+        function abrirFormulario(indice = null) {
+            indiceEdicao = indice;
+            document.getElementById('tituloForm').textContent = indice !== null ? "Editar Perfil" : "Novo Perfil";
+            document.getElementById('nomePerfil').value = indice !== null ? perfis[indice].nome : "";
+            document.getElementById('tela-perfis').style.display = "none";
+            document.getElementById('tela-formulario').style.display = "block";
+        }
 
-        tempHls.on(Hls.Events.MANIFEST_PARSED, () => {
-            console.log("Carregando episódio...");
-        });
+        function avancarParaAvatar() {
+            nomeTemp = document.getElementById('nomePerfil').value.trim();
+            if (!nomeTemp) return alert("Digite um nome válido!");
+            document.getElementById('tela-formulario').style.display = "none";
+            document.getElementById('tela-escolha-avatar').style.display = "block";
+            document.querySelectorAll('.avatar-opcao').forEach(img => img.classList.remove('selecionado'));
+        }
 
-        tempHls.on(Hls.Events.FRAG_LOADED, () => {
-            const percent = video.buffered.length ? Math.round((video.buffered.end(0) / video.duration) * 100) : 0;
-            if (percent >= 98) {
-                marcarComoCarregado(url);
-                alert("✅ Episódio carregado! Agora pode ver sem internet.");
-                tempHls.destroy();
-                atualizarBotoesCache();
-            }
-        });
+        function selecionarAvatar(caminho) {
+            document.querySelectorAll('.avatar-opcao').forEach(img => img.classList.remove('selecionado'));
+            event.currentTarget.classList.add('selecionado');
+            avatarTemp = caminho;
+            document.getElementById('tela-escolha-avatar').style.display = "none";
+            document.getElementById('tela-escolha-fundo').style.display = "block";
+            document.querySelectorAll('.fundo-opcao').forEach(img => img.classList.remove('selecionado'));
+        }
 
-        tempHls.on(Hls.Events.ERROR, () => {
-            alert("❌ Não foi possível carregar o episódio.");
-            tempHls.destroy();
-        });
-    }
+        function selecionarFundo(caminho) {
+            document.querySelectorAll('.fundo-opcao').forEach(img => img.classList.remove('selecionado'));
+            event.currentTarget.classList.add('selecionado');
+            fundoTemp = caminho;
 
-    function atualizarBotoesCache() {
-        document.querySelectorAll('.btn-offline').forEach(btn => {
-            const url = btn.dataset.url;
-            if (verificarCache(url)) {
-                btn.classList.add('carregado');
-                btn.innerText = "✅ Salvo";
+            if (indiceEdicao !== null) {
+                perfis[indiceEdicao] = { nome: nomeTemp, avatar: avatarTemp, fundo: fundoTemp };
             } else {
-                btn.classList.remove('carregado');
-                btn.innerText = "⬇️ Carregar";
+                perfis.push({ nome: nomeTemp, avatar: avatarTemp, fundo: fundoTemp });
             }
-        });
-    }
+            salvarPerfis();
+            iniciarCarregamento(nomeTemp, avatarTemp, fundoTemp);
+        }
 
-    function formatarTempo(segundos) {
-        const m = Math.floor(segundos / 60);
-        const s = Math.floor(segundos % 60);
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    }
+        function entrarPerfil(indice) {
+            const p = perfis[indice];
+            iniciarCarregamento(p.nome, p.avatar, p.fundo || 'https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund01.jpg');
+        }
 
-    // === REPRODUÇÃO DE VÍDEO ===
-    function tocarEpisodio(url, tempoInicio = 0, nomeSerie = "", numeroEp = 0, img = "") {
-        if (!url) return;
-        episodioAtual = { url, tempo: tempoInicio, nome: nomeSerie, numero: numeroEp, img };
+        function editarPerfil(indice, e) {
+            e.stopPropagation();
+            abrirFormulario(indice);
+        }
 
-        if (hls) { hls.destroy(); hls = null; }
+        function iniciarCarregamento(nome, avatar, fundo) {
+            document.body.style.background = `linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.88)), url('${fundo}')`;
+            document.getElementById('tela-carregando').style.background = `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('${fundo}')`;
+            document.getElementById('avatar-carregando').src = avatar;
+            document.getElementById('mensagem-carregando').textContent = `BEM-VINDO(A), ${nome}!`;
 
-        if (url.includes('.m3u8')) {
-            hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: false,
-                backBufferLength: 300,
-                maxBufferLength: 60,
-                maxMaxBufferLength: 1200,
-                maxBufferSize: 150 * 1000 * 1000,
-                xhrSetup: function(xhr) {
-                    xhr.withCredentials = false;
-                    xhr.setRequestHeader('Origin', window.location.origin);
-                    xhr.setRequestHeader('Referer', window.location.href);
-                }
-            });
+            const tela = document.getElementById('tela-carregando');
+            tela.style.opacity = "1";
+            tela.style.pointerEvents = "auto";
 
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                if (tempoInicio > 0) video.currentTime = tempoInicio;
-                video.play().catch(e => console.log("Autoplay bloqueado:", e));
-            });
-        } else {
-            video.src = url;
+            setTimeout(() => {
+                document.getElementById('nome-usuario').textContent = nome;
+                document.getElementById('avatar-usuario').src = avatar;
+                tela.style.opacity = "0";
+                tela.style.pointerEvents = "none";
+                document.getElementById('tela-escolha-fundo').style.display = "none";
+                document.getElementById('tela-perfis').style.display = "none";
+                document.getElementById('tela-home').style.display = "block";
+            }, 1800);
+        }
+
+        function voltarParaPerfis() {
+            document.getElementById('tela-formulario').style.display = "none";
+            document.getElementById('tela-escolha-avatar').style.display = "none";
+            document.getElementById('tela-escolha-fundo').style.display = "none";
+            document.getElementById('tela-home').style.display = "none";
+            document.getElementById('area-player').style.display = "none";
+            document.getElementById('tela-perfis').style.display = "flex";
+            document.body.style.background = `linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.88)), url('https://raw.githubusercontent.com/felipekoch24/TV_STREAM/main/imagens%20perfil/fund01.jpg')`;
+            indiceEdicao = nomeTemp = avatarTemp = fundoTemp = null;
+        }
+
+        function voltarParaFormulario() {
+            document.getElementById('tela-escolha-avatar').style.display = "none";
+            document.getElementById('tela-formulario').style.display = "block";
+        }
+
+        function voltarParaAvatar() {
+            document.getElementById('tela-escolha-fundo').style.display = "none";
+            document.getElementById('tela-escolha-avatar').style.display = "block";
+        }
+
+        // 🎬 Abre vídeo ao clicar na capa
+        function abrirVideo(id) {
+            const video = document.getElementById('video-player');
+            video.src = LINKS_VIDEOS[id];
             video.load();
-            video.onloadedmetadata = () => {
-                if (tempoInicio > 0) video.currentTime = tempoInicio;
-                video.play().catch(e => console.log("Erro ao reproduzir:", e));
-            };
+            video.play().catch(() => alert("Clique no play para iniciar!"));
+            document.getElementById('area-player').style.display = "block";
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        video.ontimeupdate = () => {
-            const atual = video.currentTime;
-            const total = video.duration || 0;
-            if (!video.paused && total > 10) {
-                salvarProgresso(url, atual, nomeSerie, numeroEp, img);
-            }
-        };
-
-        video.onended = () => {
-            mostrarContagemProximo();
-        };
-
-        destacarEpisodioAtual(numeroEp);
-        window.scrollTo(0, 0);
-    }
-
-    // === NAVEGAÇÃO ===
-    function verTemporadas(serie) {
-        document.getElementById('interface').style.display = 'none';
-        document.getElementById('eps-view').style.display = 'block';
-        document.getElementById('info-serie').innerText = serie.nome;
-        const grid = document.getElementById('btns-eps');
-        grid.innerHTML = "";
-        document.getElementById('controles-pagina').style.display = 'none';
-
-        if (serie.temporadas && serie.temporadas.length > 0) {
-            serie.temporadas.forEach(temp => {
-                const btn = document.createElement('button');
-                btn.innerText = `Temporada ${temp.n}`;
-                btn.style.background = "#e50914";
-                btn.onclick = () => { temporadaAtual = temp; carregarEpisodios(temp); };
-                grid.appendChild(btn);
-            });
-        } else {
-            temporadaAtual = serie;
-            carregarEpisodios(serie);
-        }
-    }
-
-    function carregarEpisodios(temp, pagina = 1) {
-        paginaAtual = pagina;
-        const inicio = temp.start || 1;
-        const totalEp = temp.total;
-        const indiceInicio = (pagina - 1) * EPISODIOS_POR_PAGINA;
-        const fim = Math.min(indiceInicio + EPISODIOS_POR_PAGINA, totalEp);
-
-        const grid = document.getElementById('btns-eps');
-        grid.innerHTML = "";
-
-        for (let i = indiceInicio; i < fim; i++) {
-            const numeroEp = inicio + i;
-            const epFormatado = String(numeroEp).padStart(2, '0');
-            const url = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temp.pasta}/${epFormatado}.mp4/index.m3u8`;
-
-            const divEp = document.createElement('div');
-            divEp.className = 'ep-item';
-            divEp.innerHTML = `
-                <button class="btn-ep" data-ep="${numeroEp}">${numeroEp}</button>
-                <button class="btn-offline" data-url="${url}">⬇️ Carregar</button>
-            `;
-
-            divEp.querySelector('.btn-ep').onclick = () => {
-                tocarEpisodio(url, 0, serieAtual.nome, numeroEp, serieAtual.img);
-            };
-
-            divEp.querySelector('.btn-offline').onclick = () => {
-                carregarParaOffline(url, numeroEp, serieAtual.nome, serieAtual.img);
-            };
-
-            grid.appendChild(divEp);
+        function fecharPlayer() {
+            const video = document.getElementById('video-player');
+            video.pause();
+            video.src = "";
+            document.getElementById('area-player').style.display = "none";
         }
 
-        atualizarBotoesCache();
-
-        const controles = document.getElementById('controles-pagina');
-        controles.style.display = totalEp > EPISODIOS_POR_PAGINA ? 'flex' : 'none';
-        document.getElementById('info-pagina').innerText = `Página ${pagina} de ${Math.ceil(totalEp / EPISODIOS_POR_PAGINA)}`;
-        document.getElementById('pagina-anterior').disabled = pagina === 1;
-        document.getElementById('pagina-anterior').onclick = () => carregarEpisodios(temp, pagina - 1);
-        document.getElementById('pagina-proxima').disabled = fim >= totalEp;
-        document.getElementById('pagina-proxima').onclick = () => carregarEpisodios(temp, pagina + 1);
-
-        destacarEpisodioAtual();
-    }
-
-    function destacarEpisodioAtual(numeroAtual = null) {
-        document.querySelectorAll('.btn-ep').forEach(b => b.classList.remove('btn-ativo'));
-        if (!numeroAtual && episodioAtual) numeroAtual = episodioAtual.numero;
-        if (numeroAtual) {
-            const botao = document.querySelector(`.btn-ep[data-ep="${numeroAtual}"]`);
-            if (botao) botao.classList.add('btn-ativo');
-        }
-    }
-
-    // === PRÓXIMO EPISÓDIO ===
-    function mostrarContagemProximo() {
-        overlay.style.display = 'block';
-        let contagem = 10;
-        contadorEl.innerText = contagem;
-
-        const contador = setInterval(() => {
-            contagem--;
-            contadorEl.innerText = contagem;
-            if (contagem <= 0) {
-                clearInterval(contador);
-                pularAgora();
-            }
-        }, 1000);
-    }
-
-    function pularAgora() {
-        overlay.style.display = 'none';
-        if (!episodioAtual || !temporadaAtual) return;
-
-        const proximoNumero = episodioAtual.numero + 1;
-        const inicio = temporadaAtual.start || 1;
-        const total = temporadaAtual.total;
-
-        if (proximoNumero > inicio + total - 1) {
-            alert("Último episódio da temporada!");
-            return;
-        }
-
-        const epFormatado = String(proximoNumero).padStart(2, '0');
-        const novaUrl = `https://cdn-s01.mywallpaper-4k-image.net/stream/${temporadaAtual.pasta}/${epFormatado}.mp4/index.m3u8`;
-        tocarEpisodio(novaUrl, 0, serieAtual.nome, proximoNumero, serieAtual.img);
-    }
-
-    function cancelarPulo() {
-        overlay.style.display = 'none';
-        video.play();
-    }
-
-    function voltar() {
-        video.pause();
-        document.getElementById('interface').style.display = 'block';
-        document.getElementById('eps-view').style.display = 'none';
-        carregarHistorico();
-    }
-
-    function filtrarSeries() {
-        const termo = document.getElementById('search-bar').value.toLowerCase();
-        document.querySelectorAll('.serie-card').forEach(card => {
-            const nome = card.querySelector('span').innerText.toLowerCase();
-            card.style.display = nome.includes(termo) ? 'flex' : 'none';
-        });
-    }
-</script>
+        window.onload = carregarListaPerfis;
+    </script>
 </body>
 </html>
